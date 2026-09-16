@@ -1,0 +1,124 @@
+// lib/screens/requests/new_request_wizard/step2_add_items.dart
+import 'package:flutter/material.dart';
+
+import '../../../models/request_item_draft.dart';
+import '../../../theme/app_theme.dart';
+
+class Step2AddItems extends StatefulWidget {
+  final List<RequestItemDraft> items;
+  final VoidCallback onChanged;
+
+  const Step2AddItems({super.key, required this.items, required this.onChanged});
+
+  @override
+  State<Step2AddItems> createState() => _Step2AddItemsState();
+}
+
+class _Step2AddItemsState extends State<Step2AddItems> {
+  void _addItem() {
+    setState(() => widget.items.add(RequestItemDraft(name: '')));
+    widget.onChanged();
+  }
+
+  void _removeItem(int index) {
+    setState(() => widget.items.removeAt(index));
+    widget.onChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('What do you need from them?',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: widget.items.isEmpty
+                ? Center(
+                child: Text('Add at least one item below.',
+                    style: TextStyle(color: AppColors.inkSoft)))
+                : ListView.separated(
+              itemCount: widget.items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final item = widget.items[index];
+
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.paperRaised,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.line),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: item.name,
+                              decoration: const InputDecoration(
+                                  labelText: 'Item name', isDense: true),
+                              onChanged: (v) => item.name = v,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                color: AppColors.rust),
+                            onPressed: () => _removeItem(index),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        initialValue: item.instructions,
+                        decoration: const InputDecoration(
+                            labelText: 'Instructions (optional)',
+                            isDense: true),
+                        onChanged: (v) => item.instructions = v,
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Text('Type: ',
+                              style: TextStyle(color: AppColors.inkSoft)),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('File'),
+                            selected: item.type == 'file',
+                            onSelected: (_) =>
+                                setState(() => item.type = 'file'),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Text answer'),
+                            selected: item.type == 'text',
+                            onSelected: (_) =>
+                                setState(() => item.type = 'text'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _addItem,
+            icon: const Icon(Icons.add),
+            label: const Text('Add item'),
+          ),
+        ],
+      ),
+    );
+  }
+}

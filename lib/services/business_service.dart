@@ -22,6 +22,15 @@ class BusinessService {
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
+  Stream<DocumentSnapshot<Map<String, dynamic>>> streamBusinessProfile() {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw Exception('No authenticated user found.');
+    }
+
+    return _firestore.collection('businesses').doc(user.uid).snapshots();
+  }
 
   Future<DocumentSnapshot<Map<String, dynamic>>> getBusinessProfile() async {
     final user = _auth.currentUser;
