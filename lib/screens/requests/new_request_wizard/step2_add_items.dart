@@ -66,7 +66,10 @@ class _Step2AddItemsState extends State<Step2AddItems> {
                               initialValue: item.name,
                               decoration: const InputDecoration(
                                   labelText: 'Item name', isDense: true),
-                              onChanged: (v) => item.name = v,
+                              onChanged: (v) {
+                                item.name = v;
+                                widget.onChanged();
+                              },
                             ),
                           ),
                           IconButton(
@@ -82,7 +85,10 @@ class _Step2AddItemsState extends State<Step2AddItems> {
                         decoration: const InputDecoration(
                             labelText: 'Instructions (optional)',
                             isDense: true),
-                        onChanged: (v) => item.instructions = v,
+                        onChanged: (v) {
+                          item.instructions = v;
+                          widget.onChanged();
+                        },
                       ),
                       const SizedBox(height: 10),
                       Row(
@@ -93,15 +99,19 @@ class _Step2AddItemsState extends State<Step2AddItems> {
                           ChoiceChip(
                             label: const Text('File'),
                             selected: item.type == 'file',
-                            onSelected: (_) =>
-                                setState(() => item.type = 'file'),
+                            onSelected: (_) {
+                              setState(() => item.type = 'file');
+                              widget.onChanged();
+                            },
                           ),
                           const SizedBox(width: 8),
                           ChoiceChip(
                             label: const Text('Text answer'),
                             selected: item.type == 'text',
-                            onSelected: (_) =>
-                                setState(() => item.type = 'text'),
+                            onSelected: (_) {
+                              setState(() => item.type = 'text');
+                              widget.onChanged();
+                            },
                           ),
                         ],
                       ),

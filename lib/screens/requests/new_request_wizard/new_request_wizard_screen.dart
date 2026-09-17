@@ -44,6 +44,7 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
   }
 
   Future<void> _sendRequest() async {
+    debugPrint('🔵 _sendRequest called, client=${_selectedClient?.id}, items=${_items.length}');
     if (_selectedClient == null) return;
     setState(() => _sending = true);
 
@@ -55,9 +56,10 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
+      debugPrint('❌ createRequest failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not create request: $e')));
+          .showSnackBar(SnackBar(content: Text('Could not create request: $e'), duration: const Duration(seconds: 6)));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -115,6 +117,7 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
                       onPressed: !_canGoNext || _sending
                           ? null
                           : () {
+                        debugPrint('🟢 Button tapped, currentStep=$_currentStep, canGoNext=$_canGoNext');
                         if (_currentStep < 2) {
                           _goToStep(_currentStep + 1);
                         } else {
