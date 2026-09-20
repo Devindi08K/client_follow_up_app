@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
@@ -52,14 +52,12 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: AppColors.forest,
         ),
       );
-
-      // The dashboard will be connected in the next step.
-    } on FirebaseAuthException catch (error) {
+    } on AuthException catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_authErrorMessage(error.code)),
+          content: Text(_authErrorMessage(error.message)),
           backgroundColor: AppColors.rust,
         ),
       );
@@ -81,24 +79,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  String _authErrorMessage(String code) {
-    switch (code) {
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'user-not-found':
-      case 'invalid-credential':
-        return 'Incorrect email or password.';
-      case 'wrong-password':
-        return 'Incorrect password.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
-      case 'network-request-failed':
-        return 'Please check your internet connection.';
-      default:
-        return 'Unable to log in. Please try again.';
+  String _authErrorMessage(String message) {
+    final lower = message.toLowerCase();
+
+    if (lower.contains('invalid login credentials')) {
+      return 'Incorrect email or password.';
     }
+    if (lower.contains('email not confirmed')) {
+      return 'Please confirm your email before logging in.';
+    }
+    if (lower.contains('network')) {
+      return 'Please check your internet connection.';
+    }
+
+    return 'Unable to log in. Please try again.';
   }
 
   @override
@@ -116,7 +110,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 28),
-
                     Container(
                       width: 64,
                       height: 64,
@@ -130,25 +123,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         size: 34,
                       ),
                     ),
-
                     const SizedBox(height: 28),
-
                     Text(
                       'Welcome back',
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
-
                     const SizedBox(height: 8),
-
                     Text(
                       'Sign in to manage your client follow-ups.',
                       style: Theme.of(context).textTheme.bodyMedium
                           ?.copyWith(color: AppColors.inkSoft),
                     ),
-
                     const SizedBox(height: 32),
-
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -159,21 +146,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) {
                         final email = value?.trim() ?? '';
-
                         if (email.isEmpty) {
                           return 'Enter your email address.';
                         }
-
                         if (!email.contains('@')) {
                           return 'Enter a valid email address.';
                         }
-
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 16),
-
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -200,31 +182,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Enter your password.';
                         }
-
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 24),
-
                     SizedBox(
                       height: 52,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _login,
                         child: _isLoading
                             ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                             : const Text('Sign in'),
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -233,13 +208,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: _isLoading
                               ? null
                               : () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const SignupScreen(),
-                                    ),
-                                  );
-                                },
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SignupScreen(),
+                              ),
+                            );
+                          },
                           child: const Text('Create account'),
                         ),
                       ],

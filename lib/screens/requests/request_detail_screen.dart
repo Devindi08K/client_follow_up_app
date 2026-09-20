@@ -1,28 +1,37 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/request_service.dart';
+
 class RequestDetailScreen extends StatelessWidget {
-  final DocumentReference<Map<String, dynamic>> requestRef;
+  final String requestId;
   final String clientName;
-  const RequestDetailScreen({super.key, required this.requestRef, required this.clientName});
+
+  const RequestDetailScreen({
+    super.key,
+    required this.requestId,
+    required this.clientName,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final requestService = RequestService();
+
     return Scaffold(
       appBar: AppBar(title: Text(clientName)),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(   // add the generic
-        stream: requestRef.collection('items').snapshots(),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: requestService.streamRequestItems(requestId),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final items = snapshot.data!.docs;
+
+          final items = snapshot.data!;
           if (items.isEmpty) {
             return const Center(child: Text('No items on this request.'));
           }
+
           return ListView(
-            children: items.map((doc) {
-              final data = doc.data();   // no more "as Map<String,dynamic>" needed — already typed
+            children: items.map((data) {
               return ListTile(
                 title: Text(data['name'] ?? ''),
                 subtitle: Text(data['instructions'] ?? ''),

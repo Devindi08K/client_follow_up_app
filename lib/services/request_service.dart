@@ -1,92 +1,78 @@
-// lib/services/request_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/request_item_draft.dart';
 
 class RequestService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _client = Supabase.instance.client;
+
+  static const List<int> defaultCadence = [1, 3, 7];
 
   Stream<List<Map<String, dynamic>>> streamAllRequests() {
-    final uid = _auth.currentUser!.uid;
-    return _firestore
-        .collectionGroup('requests')
-        .where('businessId', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs
-        .map((d) => {'id': d.id, 'ref': d.reference, ...d.data()})
-        .toList());
+    final uid = _client.auth.currentUser!.id;
+
+    return _client
+        .from('requests')
+        .stream(primaryKey: ['id'])
+        .eq('business_id', uid)
+        .order('created_at')
+        .map((rows) => rows.reversed.toList());
   }
 
   Stream<List<Map<String, dynamic>>> streamRequestsForClient(String clientId) {
-    final uid = _auth.currentUser!.uid;
-    return _firestore
-        .collection('businesses').doc(uid)
-        .collection('clients').doc(clientId)
-        .collection('requests')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs
-        .map((d) => {'id': d.id, 'ref': d.reference, ...d.data()})
-        .toList());
+    return _client
+        .from('requests')
+        .stream(primaryKey: ['id'])
+        .eq('client_id', clientId)
+        .order('created_at')
+        .map((rows) => rows.reversed.toList());
   }
 
-  static const List<int> defaultCadence = [1, 3, 7];
+  Stream<List<Map<String, dynamic>>> streamRequestItems(String requestId) {
+    return _client
+        .from('request_items')
+        .stream(primaryKey: ['id'])
+        .eq('request_id', requestId)
+        .order('created_at');
+  }
 
   Future<String> createRequest({
     required String clientId,
     required List<RequestItemDraft> items,
+    String title = 'Request',
   }) async {
-    final uid = _auth.currentUser!.uid;
-    final requestsRef = _firestore
-        .collection('businesses')
-        .doc(uid)
-        .collection('clients')
-        .doc(clientId)
-        .collection('requests');
-
-    final requestDoc = requestsRef.doc();
-    final secureToken = requestDoc.id; // unguessable Firestore ID, doubles as token
-
+    final uid = _client.auth.currentUser!.id;
     final now = DateTime.now();
-    final nextReminderDueAt = now.add(const Duration(days: 1));
-    final tokenExpiresAt = now.add(const Duration(days: 90));
+    final nextFollowUpAt = now.add(const Duration(days: 1));
 
-    final batch = _firestore.batch();
-
-    batch.set(requestDoc, {
-      'businessId': uid,                    // <-- ADD THIS LINE
+    final requestRow = await _client
+        .from('requests')
+        .insert({
+      'business_id': uid,
+      'client_id': clientId,
+      'title': title,
       'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-      'dueDate': null,
-      'reminderCadence': defaultCadence,
-      'lastReminderSentAt': null,
-      'nextReminderDueAt': Timestamp.fromDate(nextReminderDueAt),
-      'secureToken': secureToken,
-      'tokenExpiresAt': Timestamp.fromDate(tokenExpiresAt),
-      'businessId': uid,      // NEW — required by the collection-group rule above
-      'clientId': clientId,   // NEW — lets Request Detail screen know its client
-    });
+      'reminder_cadence': defaultCadence,
+      'next_follow_up_at': nextFollowUpAt.toIso8601String(),
+    })
+        .select()
+        .single();
 
-    for (final item in items) {
-      final itemDoc = requestDoc.collection('items').doc();
-      batch.set(itemDoc, {
-        'name': item.name.trim(),
-        'instructions':
-        item.instructions.trim().isEmpty ? null : item.instructions.trim(),
-        'type': item.type,
-        'status': 'missing',
-        'fileUrl': null,
-        'textAnswer': null,
-        'submittedAt': null,
-      });
+    final requestId = requestRow['id'] as String;
+
+    if (items.isNotEmpty) {
+      await _client.from('request_items').insert(
+        items
+            .map((item) => {
+          'request_id': requestId,
+          'name': item.name.trim(),
+          'instructions':
+          item.instructions.trim().isEmpty ? null : item.instructions.trim(),
+          'status': 'missing',
+        })
+            .toList(),
+      );
     }
 
-    await batch.commit();
-    debugPrint('✅ Request created at: ${requestDoc.path}');
-    return requestDoc.id;
+    return requestId;
   }
 }

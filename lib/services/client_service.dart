@@ -1,34 +1,38 @@
-// lib/services/client_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client.dart';
 
 class ClientService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  CollectionReference<Map<String, dynamic>> get _clientsRef {
-    final uid = _auth.currentUser!.uid;
-    return _firestore.collection('businesses').doc(uid).collection('clients');
-  }
+  final SupabaseClient _client = Supabase.instance.client;
 
   Stream<List<ClientModel>> streamClients() {
-    return _clientsRef.orderBy('name').snapshots().map((snap) => snap.docs
-        .map((doc) => ClientModel.fromMap(doc.id, doc.data()))
-        .toList());
+    final uid = _client.auth.currentUser!.id;
+
+    return _client
+        .from('clients')
+        .stream(primaryKey: ['id'])
+        .eq('business_id', uid)
+        .order('name')
+        .map((rows) =>
+        rows.map((row) => ClientModel.fromMap(row['id'] as String, row)).toList());
   }
 
   Future<ClientModel> createClient({
     required String name,
     required String email,
   }) async {
-    final doc = await _clientsRef.add({
+    final uid = _client.auth.currentUser!.id;
+
+    final row = await _client
+        .from('clients')
+        .insert({
+      'business_id': uid,
       'name': name.trim(),
       'email': email.trim(),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    })
+        .select()
+        .single();
 
-    return ClientModel(id: doc.id, name: name.trim(), email: email.trim());
+    return ClientModel.fromMap(row['id'] as String, row);
   }
 }
