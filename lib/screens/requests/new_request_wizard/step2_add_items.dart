@@ -90,31 +90,6 @@ class _Step2AddItemsState extends State<Step2AddItems> {
                           widget.onChanged();
                         },
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Text('Type: ',
-                              style: TextStyle(color: AppColors.inkSoft)),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('File'),
-                            selected: item.type == 'file',
-                            onSelected: (_) {
-                              setState(() => item.type = 'file');
-                              widget.onChanged();
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('Text answer'),
-                            selected: item.type == 'text',
-                            onSelected: (_) {
-                              setState(() => item.type = 'text');
-                              widget.onChanged();
-                            },
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 );

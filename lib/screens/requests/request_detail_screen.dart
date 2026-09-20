@@ -1,45 +1,545 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
+import '../../services/message_service.dart';
 import '../../services/request_service.dart';
+import '../../theme/app_theme.dart';
+import 'message_screen.dart';
 
-class RequestDetailScreen extends StatelessWidget {
+/// B6 — Request Detail screen.
+class RequestDetailScreen extends StatefulWidget {
   final String requestId;
-  final String clientName;
 
-  const RequestDetailScreen({
-    super.key,
-    required this.requestId,
-    required this.clientName,
-  });
+  const RequestDetailScreen({super.key, required this.requestId});
+
+  @override
+  State<RequestDetailScreen> createState() => _RequestDetailScreenState();
+}
+
+class _RequestDetailScreenState extends State<RequestDetailScreen> {
+  final _requestService = RequestService();
+  final _messageService = MessageService();
+
+  Map<String, dynamic>? _request;
+  bool _loading = true;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await _requestService.fetchRequestDetail(widget.requestId);
+      if (!mounted) return;
+      setState(() {
+        _request = data;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _showError('Could not load this request.');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.rust),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.forest),
+    );
+  }
+
+  Map<String, dynamic> get _clientData =>
+      (_request?['clients'] as Map<String, dynamic>?) ?? const {};
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value as String);
+  }
+
+  Future<void> _openGenerateReminder(List<Map<String, dynamic>> items) async {
+    final missing = items.where((i) => i['status'] != 'received').toList();
+
+    if (missing.isEmpty) {
+      _showError('Every item has already been received.');
+      return;
+    }
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MessageScreen(
+          requestId: widget.requestId,
+          clientName: _clientData['name'] as String? ?? 'there',
+          clientEmail: _clientData['email'] as String? ?? '',
+          clientPhone: _clientData['phone'] as String? ?? '',
+          requestTitle: _request?['title'] as String? ?? 'Request',
+          missingItemNames: missing.map((i) => i['name'] as String? ?? '').toList(),
+          dueDate: _parseDate(_request?['due_date']),
+          alreadyContacted: _request?['last_contacted_at'] != null,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      _load();
+    }
+  }
+
+  Future<void> _markContacted() async {
+    final channel = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('How did you contact the client?',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.email_outlined),
+              title: const Text('Email'),
+              onTap: () => Navigator.pop(context, 'email'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.chat_outlined),
+              title: const Text('WhatsApp'),
+              onTap: () => Navigator.pop(context, 'whatsapp'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.call_outlined),
+              title: const Text('Phone'),
+              onTap: () => Navigator.pop(context, 'phone'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_note_outlined),
+              title: const Text('Other / manual'),
+              onTap: () => Navigator.pop(context, 'manual'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (channel == null) return;
+
+    setState(() => _busy = true);
+    try {
+      await _requestService.markContacted(requestId: widget.requestId, channel: channel);
+      _showSuccess('Marked as contacted.');
+      await _load();
+    } catch (_) {
+      _showError('Could not save this. Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _callClient() async {
+    final phone = _clientData['phone'] as String? ?? '';
+    final opened = await _messageService.openDialer(phone);
+    if (!opened && mounted) {
+      _showError('No phone number saved for this client.');
+    }
+  }
+
+  Future<void> _toggleItem(Map<String, dynamic> item) async {
+    final received = item['status'] != 'received';
+    setState(() => _busy = true);
+    try {
+      await _requestService.setItemStatus(
+        requestId: widget.requestId,
+        itemId: item['id'] as String,
+        received: received,
+      );
+      await _load();
+    } catch (_) {
+      _showError('Could not update this item.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _completeRequest() async {
+    setState(() => _busy = true);
+    try {
+      await _requestService.completeRequest(widget.requestId);
+      _showSuccess('Request marked complete.');
+      await _load();
+    } catch (_) {
+      _showError('Could not complete this request.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancelRequest() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel this request?'),
+        content: const Text(
+            'No further follow-ups will be sent. This stays visible in your history.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep request'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    try {
+      await _requestService.cancelRequest(widget.requestId);
+      _showSuccess('Request cancelled.');
+      await _load();
+    } catch (_) {
+      _showError('Could not cancel this request.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final requestService = RequestService();
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_request == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Request')),
+        body: const Center(child: Text('This request could not be found.')),
+      );
+    }
+
+    final status = _request!['status'] as String? ?? 'pending';
+    final title = _request!['title'] as String? ?? 'Request';
+    final description = _request!['description'] as String?;
+    final dueDate = _parseDate(_request!['due_date']);
+    final lastContacted = _parseDate(_request!['last_contacted_at']);
+    final nextFollowUp = _parseDate(_request!['next_follow_up_at']);
+    final isActive = status == 'pending' || status == 'overdue';
+    final dateFormat = DateFormat('MMM d, yyyy');
 
     return Scaffold(
-      appBar: AppBar(title: Text(clientName)),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: requestService.streamRequestItems(requestId),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      appBar: AppBar(
+        title: Text(_clientData['name'] as String? ?? 'Request'),
+        actions: [
+          if (isActive)
+            IconButton(
+              tooltip: 'Cancel request',
+              icon: const Icon(Icons.cancel_outlined),
+              onPressed: _busy ? null : _cancelRequest,
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _StatusHeader(status: status, title: title),
+                if (description != null && description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(description, style: TextStyle(color: AppColors.inkSoft)),
+                ],
+                const SizedBox(height: 20),
+                _InfoCard(
+                  children: [
+                    _InfoRow(
+                      icon: Icons.person_outline,
+                      label: _clientData['name'] as String? ?? 'Unknown client',
+                      subtitle: _clientData['email'] as String?,
+                    ),
+                    if ((_clientData['phone'] as String? ?? '').isNotEmpty)
+                      _InfoRow(
+                        icon: Icons.phone_outlined,
+                        label: _clientData['phone'] as String,
+                      ),
+                    _InfoRow(
+                      icon: Icons.event_outlined,
+                      label:
+                      dueDate == null ? 'No due date set' : 'Due ${dateFormat.format(dueDate)}',
+                    ),
+                    _InfoRow(
+                      icon: Icons.history_outlined,
+                      label: lastContacted == null
+                          ? 'Not contacted yet'
+                          : 'Last contacted ${dateFormat.format(lastContacted)}',
+                    ),
+                    if (isActive)
+                      _InfoRow(
+                        icon: Icons.notifications_active_outlined,
+                        label: nextFollowUp == null
+                            ? 'No further follow-ups scheduled'
+                            : 'Next follow-up ${dateFormat.format(nextFollowUp)}',
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _requestService.streamRequestItems(widget.requestId),
+                  builder: (context, snapshot) {
+                    final items = snapshot.data ?? [];
+                    final loadingItems = !snapshot.hasData;
 
-          final items = snapshot.data!;
-          if (items.isEmpty) {
-            return const Center(child: Text('No items on this request.'));
-          }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Required items',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 10),
+                        if (loadingItems)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (items.isEmpty)
+                          Text('No items on this request.',
+                              style: TextStyle(color: AppColors.inkSoft))
+                        else
+                          Column(
+                            children: items
+                                .map((item) => _ItemTile(
+                              item: item,
+                              busy: _busy,
+                              onToggle: () => _toggleItem(item),
+                            ))
+                                .toList(),
+                          ),
+                        const SizedBox(height: 28),
+                        if (isActive) ...[
+                          SizedBox(
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              onPressed: _busy ? null : () => _openGenerateReminder(items),
+                              icon: const Icon(Icons.campaign_outlined),
+                              label: const Text('Generate reminder'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _busy ? null : _callClient,
+                                  icon: const Icon(Icons.call_outlined),
+                                  label: const Text('Call'),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _busy ? null : _markContacted,
+                                  icon: const Icon(Icons.check_circle_outline),
+                                  label: const Text('Mark contacted'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 48,
+                            child: TextButton(
+                              onPressed: _busy ? null : _completeRequest,
+                              child: const Text('Mark request complete'),
+                            ),
+                          ),
+                        ] else
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.sageLight,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  status == 'complete'
+                                      ? Icons.check_circle_outline
+                                      : Icons.block_outlined,
+                                  color: AppColors.forStatus(status),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    status == 'complete'
+                                        ? 'This request is complete.'
+                                        : 'This request was cancelled.',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-          return ListView(
-            children: items.map((data) {
-              return ListTile(
-                title: Text(data['name'] ?? ''),
-                subtitle: Text(data['instructions'] ?? ''),
-                trailing: Text(data['status'] ?? 'missing'),
-              );
-            }).toList(),
-          );
-        },
+class _StatusHeader extends StatelessWidget {
+  final String status;
+  final String title;
+
+  const _StatusHeader({required this.status, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style:
+            Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.forStatus(status).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            status[0].toUpperCase() + status.substring(1),
+            style: TextStyle(
+              color: AppColors.forStatus(status),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _InfoCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.paperRaised,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+
+  const _InfoRow({required this.icon, required this.label, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.sageDeep),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(subtitle!, style: TextStyle(color: AppColors.inkSoft, fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemTile extends StatelessWidget {
+  final Map<String, dynamic> item;
+  final bool busy;
+  final VoidCallback onToggle;
+
+  const _ItemTile({required this.item, required this.busy, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final received = item['status'] == 'received';
+    final instructions = item['instructions'] as String?;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.paperRaised,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: CheckboxListTile(
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: received,
+        onChanged: busy ? null : (_) => onToggle(),
+        title: Text(
+          item['name'] as String? ?? '',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            decoration: received ? TextDecoration.lineThrough : null,
+            color: received ? AppColors.inkSoft : AppColors.ink,
+          ),
+        ),
+        subtitle: instructions != null && instructions.isNotEmpty ? Text(instructions) : null,
+        secondary: Text(
+          received ? 'Received' : 'Missing',
+          style: TextStyle(
+            color: AppColors.forStatus(received ? 'complete' : 'pending'),
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
       ),
     );
   }

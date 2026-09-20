@@ -46,7 +46,6 @@ class Step3ReviewSend extends StatelessWidget {
                   title: Text(item.name),
                   subtitle:
                   item.instructions.isNotEmpty ? Text(item.instructions) : null,
-                  trailing: Text(item.type == 'file' ? 'File' : 'Text'),
                 );
               },
             ),

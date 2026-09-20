@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/auth_service.dart';
-import '../../services/business_service.dart';
 import '../../theme/app_theme.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -36,59 +35,36 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _signup() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
 
     try {
-      await _authService.signUp(
+      final response = await _authService.signUp(
         email: _emailController.text,
         password: _passwordController.text,
       );
 
-      await BusinessService().createBusinessProfile(
-        businessName: _businessNameController.text,
-      );
-
       if (!mounted) return;
 
+      final message = response.session == null
+          ? 'Check your email to confirm your account, then sign in.'
+          : 'Account created successfully.';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully.'),
-          backgroundColor: AppColors.forest,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.forest),
       );
 
       Navigator.pop(context);
     } on AuthException catch (error) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_authErrorMessage(error.message)),
           backgroundColor: AppColors.rust,
         ),
       );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Business profile error: $error'),
-          backgroundColor: AppColors.rust,
-          duration: const Duration(seconds: 10),
-        ),
-      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

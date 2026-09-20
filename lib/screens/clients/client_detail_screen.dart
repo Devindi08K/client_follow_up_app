@@ -19,7 +19,10 @@ class ClientDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Email: ${client.email}'),
-            // add whatever other ClientModel fields you want to show
+            if (client.phone.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Phone: ${client.phone}'),
+            ],
           ],
         ),
       ),

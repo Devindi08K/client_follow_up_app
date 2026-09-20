@@ -26,12 +26,14 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _creating = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -43,6 +45,7 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
       final client = await _clientService.createClient(
         name: _nameController.text,
         email: _emailController.text,
+        phone: _phoneController.text,
       );
       widget.onClientSelected(client);
 
@@ -51,6 +54,7 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
         _showNewClientForm = false;
         _nameController.clear();
         _emailController.clear();
+        _phoneController.clear();
       });
     } catch (e) {
       if (!mounted) return;
@@ -140,6 +144,13 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
                       if (!email.contains('@')) return 'Enter a valid email';
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                        labelText: 'Client phone (optional)'),
                   ),
                   const SizedBox(height: 12),
                   Row(
