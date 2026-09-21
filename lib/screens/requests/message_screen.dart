@@ -209,7 +209,10 @@ class _MessageScreenState extends State<MessageScreen> {
                       ? null
                       : () async {
                     await _markContacted('manual');
-                    if (mounted) Navigator.pop(context, true);
+
+                    if (!mounted) return;
+
+                    Navigator.pop(context, true);
                   },
                   child: const Text('Mark contacted without sending'),
                 ),
