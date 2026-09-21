@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/client.dart';
 import '../../../models/request_item_draft.dart';
+import '../../../services/business_service.dart';
 import '../../../services/request_service.dart';
 import '../../../theme/app_theme.dart';
 import 'step1_select_client.dart';
@@ -11,18 +12,22 @@ import 'step4_reminder_schedule.dart';
 import 'step5_review_send.dart';
 
 class NewRequestWizardScreen extends StatefulWidget {
-  const NewRequestWizardScreen({super.key});
+  final ClientModel? initialClient;
+
+  const NewRequestWizardScreen({super.key, this.initialClient});
 
   @override
   State<NewRequestWizardScreen> createState() => _NewRequestWizardScreenState();
 }
 
 class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
-  final _pageController = PageController();
+  late final _pageController = PageController(
+    initialPage: widget.initialClient != null ? 1 : 0,
+  );
   final _requestService = RequestService();
 
-  int _currentStep = 0;
-  ClientModel? _selectedClient;
+  late int _currentStep = widget.initialClient != null ? 1 : 0;
+  late ClientModel? _selectedClient = widget.initialClient;
 
   String _title = '';
   String _description = '';
@@ -35,6 +40,24 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
   bool _sending = false;
 
   static const _stepTitles = ['Client', 'Details', 'Items', 'Reminders', 'Review'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDefaultCadence();
+  }
+
+  Future<void> _loadDefaultCadence() async {
+    try {
+      final profile = await BusinessService().getBusinessProfile();
+      final raw = profile?['default_reminder_cadence'] as List?;
+      if (raw != null && raw.isNotEmpty && mounted) {
+        setState(() => _cadence = raw.map((e) => e as int).toList()..sort());
+      }
+    } catch (_) {
+      // Fall back silently to the static default — non-critical.
+    }
+  }
 
   bool get _canGoNext {
     switch (_currentStep) {

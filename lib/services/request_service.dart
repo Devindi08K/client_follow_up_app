@@ -245,4 +245,73 @@ class RequestService {
       'cancelled_at': DateTime.now().toIso8601String(),
     }).eq('id', requestId);
   }
+  /// Reopens a cancelled request (Flow J / B6 — Reopen), resuming the
+  /// follow-up workflow. Recomputes the next follow-up date from the
+  /// reminder cadence, based on whichever is later: creation, or the last
+  /// time the client was actually contacted.
+  Future<void> reopenRequest(String requestId) async {
+    final request = await _client
+        .from('requests')
+        .select('created_at, reminder_cadence, last_contacted_at')
+        .eq('id', requestId)
+        .single();
+
+    final createdAt = DateTime.parse(request['created_at'] as String);
+    final cadence =
+        (request['reminder_cadence'] as List?)?.map((e) => e as int).toList() ??
+            defaultCadence;
+    final lastContactedAt = request['last_contacted_at'] != null
+        ? DateTime.parse(request['last_contacted_at'] as String)
+        : null;
+
+    final nextFollowUp = lastContactedAt != null
+        ? _computeNextFollowUp(cadence, createdAt, lastContactedAt)
+        : createdAt.add(Duration(days: cadence.first));
+
+    await _client.from('requests').update({
+      'status': 'pending',
+      'cancelled_at': null,
+      'next_follow_up_at': nextFollowUp?.toIso8601String(),
+    }).eq('id', requestId);
+
+    await _logFollowUp(requestId: requestId, action: 'reopened');
+  }
+  /// Extends (or shortens) a request's due date (B6 — Extend Due Date).
+  /// If the request had been flagged overdue and the new date is in the
+  /// future, it's un-flagged back to pending.
+  Future<void> extendDueDate({
+    required String requestId,
+    required DateTime newDueDate,
+  }) async {
+    final request = await _client
+        .from('requests')
+        .select('status')
+        .eq('id', requestId)
+        .single();
+
+    final currentStatus = request['status'] as String?;
+    final updates = <String, dynamic>{
+      'due_date': newDueDate.toIso8601String(),
+    };
+
+    if (currentStatus == 'overdue' && newDueDate.isAfter(DateTime.now())) {
+      updates['status'] = 'pending';
+    }
+
+    await _client.from('requests').update(updates).eq('id', requestId);
+
+    await _logFollowUp(
+      requestId: requestId,
+      action: 'due_date_extended',
+      notes: 'New due date: ${_formatDate(newDueDate)}',
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
 }

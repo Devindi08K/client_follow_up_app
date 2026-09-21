@@ -185,6 +185,32 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  Future<void> _extendDueDate() async {
+    final currentDue = _parseDate(_request?['due_date']);
+    final baseline = (currentDue == null || currentDue.isBefore(DateTime.now()))
+        ? DateTime.now()
+        : currentDue;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: baseline.add(const Duration(days: 3)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+    );
+    if (picked == null) return;
+
+    setState(() => _busy = true);
+    try {
+      await _requestService.extendDueDate(requestId: widget.requestId, newDueDate: picked);
+      _showSuccess('Due date updated.');
+      await _load();
+    } catch (_) {
+      _showError('Could not update the due date.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _cancelRequest() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -214,6 +240,39 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       await _load();
     } catch (_) {
       _showError('Could not cancel this request.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+  Future<void> _reopenRequest() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reopen this request?'),
+        content: const Text(
+            'This resumes the follow-up workflow and schedules a new reminder.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reopen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    try {
+      await _requestService.reopenRequest(widget.requestId);
+      _showSuccess('Request reopened.');
+      await _load();
+    } catch (_) {
+      _showError('Could not reopen this request.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -377,6 +436,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 10),           // ← new
+                          SizedBox(                              // ← new
+                            height: 48,                           // ← new
+                            child: OutlinedButton.icon(            // ← new
+                              onPressed: _busy ? null : _extendDueDate, // ← new
+                              icon: const Icon(Icons.event_outlined),   // ← new
+                              label: const Text('Extend due date'),     // ← new
+                            ),
+                          ),
                           const SizedBox(height: 10),
                           SizedBox(
                             height: 48,
@@ -385,7 +453,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               child: const Text('Mark request complete'),
                             ),
                           ),
-                        ] else
+                          // NEW — replace it with this:
+                        ] else ...[
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -411,6 +480,18 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               ],
                             ),
                           ),
+                          if (status == 'cancelled') ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                onPressed: _busy ? null : _reopenRequest,
+                                icon: const Icon(Icons.refresh_outlined),
+                                label: const Text('Reopen request'),
+                              ),
+                            ),
+                          ],
+                        ],
                       ],
                     );
                   },

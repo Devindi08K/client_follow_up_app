@@ -10,6 +10,7 @@ import '../requests/new_request_wizard/new_request_wizard_screen.dart';
 import '../requests/request_detail_screen.dart';
 import '../requests/request_list_screen.dart';
 import '../clients/client_list_screen.dart';
+import '../settings/settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -213,6 +214,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('Client Follow-Up'),
         actions: [
+          IconButton(                                              // ← new
+            tooltip: 'Settings',                                    // ← new
+            icon: const Icon(Icons.settings_outlined),               // ← new
+            onPressed: () => Navigator.push(                         // ← new
+              context,                                                // ← new
+              MaterialPageRoute(builder: (_) => const SettingsScreen()), // ← new
+            ),                                                        // ← new
+          ),
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout_outlined),

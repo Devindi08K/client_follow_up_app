@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'screens/auth/auth_gate.dart';
 import 'theme/app_theme.dart';
+import 'widgets/offline_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ class ClientFollowUpApp extends StatelessWidget {
       title: 'Client Follow-Up',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
+      builder: (context, child) => OfflineBanner(child: child!),
       home: const AuthGate(),
     );
   }

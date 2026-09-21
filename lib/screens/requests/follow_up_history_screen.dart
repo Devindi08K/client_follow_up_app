@@ -23,7 +23,9 @@ class FollowUpHistoryScreen extends StatelessWidget {
       case 'marked_received':
         return 'Item marked received';
       case 'reopened':
-        return 'Item reopened';
+        return 'Reopened';   // was 'Item reopened' — now covers both item- and request-level
+      case 'due_date_extended':
+        return 'Due date extended';
       default:
         return action;
     }
@@ -39,6 +41,8 @@ class FollowUpHistoryScreen extends StatelessWidget {
         return Icons.inventory_2_outlined;
       case 'reopened':
         return Icons.refresh_outlined;
+      case 'due_date_extended':
+        return Icons.event_outlined;
       default:
         return Icons.circle_outlined;
     }
