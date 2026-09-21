@@ -78,6 +78,48 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
+  Future<void> _forgotPassword() async {
+    final controller = TextEditingController(text: _emailController.text);
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset password'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(labelText: 'Your account email'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Send reset link'),
+          ),
+        ],
+      ),
+    );
+
+    if (email == null || email.isEmpty || !email.contains('@')) return;
+
+    try {
+      await _authService.resetPassword(email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Check your email for a password reset link.'),
+          backgroundColor: AppColors.forest,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not send reset email. Please try again.'),
+          backgroundColor: AppColors.rust,
+        ),
+      );
+    }
+  }
 
   String _authErrorMessage(String message) {
     final lower = message.toLowerCase();
@@ -197,6 +239,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                             : const Text('Sign in'),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isLoading ? null : _forgotPassword,
+                        child: const Text('Forgot password?'),
                       ),
                     ),
                     const SizedBox(height: 24),

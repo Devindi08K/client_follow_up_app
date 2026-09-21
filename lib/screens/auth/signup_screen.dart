@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../services/business_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -43,6 +44,20 @@ class _SignupScreenState extends State<SignupScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      // Works immediately if email confirmation is off (session exists now).
+      // If confirmation is required, response.session is null and this will
+      // silently no-op — the dashboard-side ensureBusinessProfile() call
+      // below covers that case on first login instead.
+      if (response.session != null) {
+        try {
+          await BusinessService().ensureBusinessProfile(
+            fallbackName: _businessNameController.text,
+          );
+        } catch (_) {
+          // Non-fatal — dashboard load will retry this.
+        }
+      }
 
       if (!mounted) return;
 

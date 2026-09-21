@@ -77,7 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadBusinessProfile() async {
     try {
-      final data = await _businessService.getBusinessProfile();
+      final data = await _businessService.ensureBusinessProfile();
       if (!mounted) return;
       setState(() {
         _businessName = data?['name'] as String? ?? 'Your Business';
