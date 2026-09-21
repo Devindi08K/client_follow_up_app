@@ -5,6 +5,7 @@ import '../../services/message_service.dart';
 import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
 import 'message_screen.dart';
+import 'follow_up_history_screen.dart';
 
 /// B6 — Request Detail screen.
 class RequestDetailScreen extends StatefulWidget {
@@ -244,6 +245,19 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       appBar: AppBar(
         title: Text(_clientData['name'] as String? ?? 'Request'),
         actions: [
+          IconButton(
+            tooltip: 'View history',
+            icon: const Icon(Icons.history_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => FollowUpHistoryScreen(
+                  requestId: widget.requestId,
+                  requestTitle: _request!['title'] as String? ?? 'Request',
+                ),
+              ),
+            ),
+          ),
           if (isActive)
             IconButton(
               tooltip: 'Cancel request',

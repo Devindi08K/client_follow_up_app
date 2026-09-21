@@ -1,24 +1,39 @@
-// lib/screens/requests/new_request_wizard/step3_review_send.dart
+// lib/screens/requests/new_request_wizard/step5_review_send.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../models/client.dart';
 import '../../../models/request_item_draft.dart';
 import '../../../theme/app_theme.dart';
 
-class Step3ReviewSend extends StatelessWidget {
+class Step5ReviewSend extends StatelessWidget {
   final ClientModel client;
+  final String title;
+  final String description;
+  final DateTime? dueDate;
   final List<RequestItemDraft> items;
+  final List<int> cadence;
 
-  const Step3ReviewSend({super.key, required this.client, required this.items});
+  const Step5ReviewSend({
+    super.key,
+    required this.client,
+    required this.title,
+    required this.description,
+    required this.dueDate,
+    required this.items,
+    required this.cadence,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final dateFormat = DateFormat('MMM d, yyyy');
+
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Review & send',
+          Text('Review & create',
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -27,6 +42,15 @@ class Step3ReviewSend extends StatelessWidget {
           Text('Client', style: TextStyle(color: AppColors.inkSoft)),
           Text(client.name, style: const TextStyle(fontWeight: FontWeight.w600)),
           Text(client.email),
+          const SizedBox(height: 16),
+          Text('Request', style: TextStyle(color: AppColors.inkSoft)),
+          Text(title.trim().isEmpty ? 'Request' : title,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          if (description.trim().isNotEmpty) Text(description),
+          if (dueDate != null) ...[
+            const SizedBox(height: 4),
+            Text('Due ${dateFormat.format(dueDate!)}'),
+          ],
           const SizedBox(height: 20),
           Text('Items requested (${items.length})',
               style: TextStyle(color: AppColors.inkSoft)),
@@ -34,7 +58,7 @@ class Step3ReviewSend extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final item = items[index];
                 return ListTile(
@@ -57,9 +81,9 @@ class Step3ReviewSend extends StatelessWidget {
               color: AppColors.sageLight,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Text(
-              'Reminders will be sent on day 1, 3, and 7 if items are still missing.',
-              style: TextStyle(fontSize: 13),
+            child: Text(
+              'Reminders will be due on day${cadence.length > 1 ? 's' : ''} ${cadence.join(', ')} if items are still missing.',
+              style: const TextStyle(fontSize: 13),
             ),
           ),
         ],

@@ -1,20 +1,20 @@
-// lib/screens/requests/new_request_wizard/step2_add_items.dart
+// lib/screens/requests/new_request_wizard/step3_add_items.dart
 import 'package:flutter/material.dart';
 
 import '../../../models/request_item_draft.dart';
 import '../../../theme/app_theme.dart';
 
-class Step2AddItems extends StatefulWidget {
+class Step3AddItems extends StatefulWidget {
   final List<RequestItemDraft> items;
   final VoidCallback onChanged;
 
-  const Step2AddItems({super.key, required this.items, required this.onChanged});
+  const Step3AddItems({super.key, required this.items, required this.onChanged});
 
   @override
-  State<Step2AddItems> createState() => _Step2AddItemsState();
+  State<Step3AddItems> createState() => _Step3AddItemsState();
 }
 
-class _Step2AddItemsState extends State<Step2AddItems> {
+class _Step3AddItemsState extends State<Step3AddItems> {
   void _addItem() {
     setState(() => widget.items.add(RequestItemDraft(name: '')));
     widget.onChanged();

@@ -8,6 +8,8 @@ import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
 import '../requests/new_request_wizard/new_request_wizard_screen.dart';
 import '../requests/request_detail_screen.dart';
+import '../requests/request_list_screen.dart';
+import '../clients/client_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -189,6 +191,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
     _loadStats();
   }
+  Future<void> _openList(RequestListFilter filter, String title) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RequestListScreen(
+          filter: filter,
+          title: title,
+        ),
+      ),
+    );
+    _loadStats();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -255,6 +269,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         title: 'Active',
                         value: '${_stats.active}',
                         icon: Icons.pending_actions_outlined,
+                        onTap: () => _openList(
+                          RequestListFilter.active,
+                          'Active requests',
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -263,6 +281,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         title: 'Completed',
                         value: '${_stats.completed}',
                         icon: Icons.check_circle_outline,
+                        onTap: () => _openList(
+                          RequestListFilter.completed,
+                          'Completed requests',
+                        ),
                       ),
                     ),
                   ],
@@ -275,6 +297,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         title: 'Overdue',
                         value: '${_stats.overdue}',
                         icon: Icons.warning_amber_outlined,
+                        onTap: () => _openList(
+                          RequestListFilter.overdue,
+                          'Overdue requests',
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -283,6 +309,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         title: 'Clients',
                         value: '${_stats.clients}',
                         icon: Icons.people_outline,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ClientListScreen(),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -374,33 +406,38 @@ class _StatCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
+  final VoidCallback? onTap;
 
-  const _StatCard({required this.title, required this.value, required this.icon});
+  const _StatCard({required this.title, required this.value, required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.paperRaised,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppColors.sageDeep, size: 25),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.inkSoft),
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.paperRaised,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.sageDeep, size: 25),
+            const SizedBox(height: 14),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.inkSoft),
+            ),
+          ],
+        ),
       ),
     );
   }

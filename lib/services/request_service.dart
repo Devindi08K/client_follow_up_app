@@ -34,6 +34,14 @@ class RequestService {
         .eq('request_id', requestId)
         .order('created_at');
   }
+  Stream<List<Map<String, dynamic>>> streamFollowUpHistory(String requestId) {
+    return _client
+        .from('follow_ups')
+        .stream(primaryKey: ['id'])
+        .eq('request_id', requestId)
+        .order('created_at')
+        .map((rows) => rows.reversed.toList());
+  }
 
   /// One-time fetch of every request for the dashboard, with the parent
   /// client and item statuses embedded so stats can be computed client-side.
@@ -62,19 +70,29 @@ class RequestService {
     required String clientId,
     required List<RequestItemDraft> items,
     String title = 'Request',
+    String? description,
+    DateTime? dueDate,
+    List<int>? reminderCadence,
   }) async {
     final uid = _client.auth.currentUser!.id;
+    final cadence = (reminderCadence == null || reminderCadence.isEmpty)
+        ? defaultCadence
+        : (List<int>.from(reminderCadence)..sort());
     final now = DateTime.now();
-    final nextFollowUpAt = now.add(const Duration(days: 1));
+    final nextFollowUpAt = now.add(Duration(days: cadence.first));
 
     final requestRow = await _client
         .from('requests')
         .insert({
       'business_id': uid,
       'client_id': clientId,
-      'title': title,
+      'title': title.trim().isEmpty ? 'Request' : title.trim(),
+      'description': (description == null || description.trim().isEmpty)
+          ? null
+          : description.trim(),
       'status': 'pending',
-      'reminder_cadence': defaultCadence,
+      'due_date': dueDate?.toIso8601String(),
+      'reminder_cadence': cadence,
       'next_follow_up_at': nextFollowUpAt.toIso8601String(),
     })
         .select()

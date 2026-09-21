@@ -1,4 +1,3 @@
-// lib/screens/requests/new_request_wizard/new_request_wizard_screen.dart
 import 'package:flutter/material.dart';
 
 import '../../../models/client.dart';
@@ -6,8 +5,10 @@ import '../../../models/request_item_draft.dart';
 import '../../../services/request_service.dart';
 import '../../../theme/app_theme.dart';
 import 'step1_select_client.dart';
-import 'step2_add_items.dart';
-import 'step3_review_send.dart';
+import 'step2_request_details.dart';
+import 'step3_add_items.dart';
+import 'step4_reminder_schedule.dart';
+import 'step5_review_send.dart';
 
 class NewRequestWizardScreen extends StatefulWidget {
   const NewRequestWizardScreen({super.key});
@@ -22,16 +23,30 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
 
   int _currentStep = 0;
   ClientModel? _selectedClient;
+
+  String _title = '';
+  String _description = '';
+  DateTime? _dueDate;
+
   final List<RequestItemDraft> _items = [];
+
+  List<int> _cadence = List<int>.from(RequestService.defaultCadence);
+
   bool _sending = false;
+
+  static const _stepTitles = ['Client', 'Details', 'Items', 'Reminders', 'Review'];
 
   bool get _canGoNext {
     switch (_currentStep) {
       case 0:
         return _selectedClient != null;
       case 1:
+        return _title.trim().isNotEmpty;
+      case 2:
         return _items.isNotEmpty &&
             _items.every((item) => item.name.trim().isNotEmpty);
+      case 3:
+        return _cadence.isNotEmpty;
       default:
         return true;
     }
@@ -44,7 +59,6 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
   }
 
   Future<void> _sendRequest() async {
-    debugPrint('🔵 _sendRequest called, client=${_selectedClient?.id}, items=${_items.length}');
     if (_selectedClient == null) return;
     setState(() => _sending = true);
 
@@ -52,14 +66,18 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
       await _requestService.createRequest(
         clientId: _selectedClient!.id,
         items: _items,
+        title: _title,
+        description: _description,
+        dueDate: _dueDate,
+        reminderCadence: _cadence,
       );
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
-      debugPrint('❌ createRequest failed: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not create request: $e'), duration: const Duration(seconds: 6)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not create request: $e'),
+          duration: const Duration(seconds: 6)));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -73,10 +91,8 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const stepTitles = ['Client', 'Items', 'Review'];
-
     return Scaffold(
-      appBar: AppBar(title: Text('New request · ${stepTitles[_currentStep]}')),
+      appBar: AppBar(title: Text('New request · ${_stepTitles[_currentStep]}')),
       body: Column(
         children: [
           Expanded(
@@ -89,9 +105,32 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
                   onClientSelected: (client) =>
                       setState(() => _selectedClient = client),
                 ),
-                Step2AddItems(items: _items, onChanged: () => setState(() {})),
+                Step2RequestDetails(
+                  title: _title,
+                  description: _description,
+                  dueDate: _dueDate,
+                  onChanged: (title, description, dueDate) {
+                    setState(() {
+                      _title = title;
+                      _description = description;
+                      _dueDate = dueDate;
+                    });
+                  },
+                ),
+                Step3AddItems(items: _items, onChanged: () => setState(() {})),
+                Step4ReminderSchedule(
+                  cadence: _cadence,
+                  onChanged: (cadence) => setState(() => _cadence = cadence),
+                ),
                 if (_selectedClient != null)
-                  Step3ReviewSend(client: _selectedClient!, items: _items)
+                  Step5ReviewSend(
+                    client: _selectedClient!,
+                    title: _title,
+                    description: _description,
+                    dueDate: _dueDate,
+                    items: _items,
+                    cadence: _cadence,
+                  )
                 else
                   const SizedBox.shrink(),
               ],
@@ -117,8 +156,7 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
                       onPressed: !_canGoNext || _sending
                           ? null
                           : () {
-                        debugPrint('🟢 Button tapped, currentStep=$_currentStep, canGoNext=$_canGoNext');
-                        if (_currentStep < 2) {
+                        if (_currentStep < 4) {
                           _goToStep(_currentStep + 1);
                         } else {
                           _sendRequest();
@@ -130,7 +168,7 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: AppColors.paperRaised))
-                          : Text(_currentStep < 2 ? 'Next' : 'Create & send'),
+                          : Text(_currentStep < 4 ? 'Next' : 'Create request'),
                     ),
                   ),
                 ],
