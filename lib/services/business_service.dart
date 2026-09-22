@@ -1,35 +1,83 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BusinessService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// Returns the existing business profile, or creates one if this is the
+  /// account's first time reaching an authenticated screen (covers both the
+  /// immediate-signup case and the email-confirmation-required case, where
+  /// no session existed yet at signup time to safely insert under RLS).
+  Future<Map<String, dynamic>> ensureBusinessProfile({String fallbackName = ''}) async {
+    final existing = await getBusinessProfile();
+    if (existing != null) return existing;
+
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found.');
+
+    final name = fallbackName.trim().isNotEmpty
+        ? fallbackName.trim()
+        : (user.email?.split('@').first ?? 'My Business');
+
+    final row = await _client
+        .from('businesses')
+        .insert({
+      'id': user.id,
+      'name': name,
+      'email': user.email,
+      'plan': 'free',
+    })
+        .select()
+        .single();
+
+    return row;
+  }
 
   Future<void> createBusinessProfile({required String businessName}) async {
-    final user = _auth.currentUser;
+    final user = _client.auth.currentUser;
 
     if (user == null) {
       throw Exception('No authenticated user found.');
     }
 
-    await _firestore.collection('businesses').doc(user.uid).set({
+    await _client.from('businesses').insert({
+      'id': user.id,
       'name': businessName.trim(),
       'email': user.email,
-      'logoUrl': null,
-      'defaultReminderCadence': [1, 3, 7],
       'plan': 'free',
-      'revenueCatAppUserId': user.uid,
-      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<DocumentSnapshot<Map<String, dynamic>>> getBusinessProfile() async {
-    final user = _auth.currentUser;
+  Future<Map<String, dynamic>?> getBusinessProfile() async {
+    final user = _client.auth.currentUser;
 
     if (user == null) {
       throw Exception('No authenticated user found.');
     }
 
-    return _firestore.collection('businesses').doc(user.uid).get();
+    return _client.from('businesses').select().eq('id', user.id).maybeSingle();
   }
+
+  Future<void> updateBusinessProfile({
+    required String name,
+    String? phone,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found.');
+
+    await _client.from('businesses').update({
+      'name': name.trim(),
+      'phone': phone?.trim().isEmpty == true ? null : phone?.trim(),
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', user.id);
+  }
+
+  Future<void> updateDefaultReminderCadence(List<int> cadence) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found.');
+
+    await _client.from('businesses').update({
+      'default_reminder_cadence': cadence,
+    }).eq('id', user.id);
+  }
+
 }

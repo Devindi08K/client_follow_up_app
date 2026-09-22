@@ -1,14 +1,20 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'firebase_options.dart';
+import 'config/supabase_config.dart';
 import 'screens/auth/auth_gate.dart';
+import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/offline_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.anonKey,
+  );
+  await ThemeService.instance.load();
 
   runApp(const ClientFollowUpApp());
 }
@@ -18,11 +24,19 @@ class ClientFollowUpApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Client Follow-Up',
-      debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
-      home: const AuthGate(),
+    return AnimatedBuilder(
+      animation: ThemeService.instance,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Client Follow-Up',
+          debugShowCheckedModeBanner: false,
+          theme: buildLightTheme(),
+          darkTheme: buildDarkTheme(),
+          themeMode: ThemeService.instance.mode,
+          builder: (context, child) => OfflineBanner(child: child!),
+          home: const AuthGate(),
+        );
+      },
     );
   }
 }

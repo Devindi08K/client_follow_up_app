@@ -1,9 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/auth_service.dart';
-import '../../services/business_service.dart';
 import '../../theme/app_theme.dart';
+import '../../services/business_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -36,83 +36,67 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _signup() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
 
     try {
-      await _authService.signUp(
+      final response = await _authService.signUp(
         email: _emailController.text,
         password: _passwordController.text,
       );
 
-      await BusinessService().createBusinessProfile(
-        businessName: _businessNameController.text,
-      );
+      // Works immediately if email confirmation is off (session exists now).
+      // If confirmation is required, response.session is null and this will
+      // silently no-op — the dashboard-side ensureBusinessProfile() call
+      // below covers that case on first login instead.
+      if (response.session != null) {
+        try {
+          await BusinessService().ensureBusinessProfile(
+            fallbackName: _businessNameController.text,
+          );
+        } catch (_) {
+          // Non-fatal — dashboard load will retry this.
+        }
+      }
 
       if (!mounted) return;
 
+      final message = response.session == null
+          ? 'Check your email to confirm your account, then sign in.'
+          : 'Account created successfully.';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully.'),
-          backgroundColor: AppColors.forest,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppStatusColors.forest),
       );
 
       Navigator.pop(context);
-    } on FirebaseAuthException catch (error) {
+    } on AuthException catch (error) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_authErrorMessage(error.code)),
-          backgroundColor: AppColors.rust,
+          content: Text(_authErrorMessage(error.message)),
+          backgroundColor: AppStatusColors.rust,
         ),
       );
-    } catch (error, stackTrace) {
-      debugPrint('========================================');
-      debugPrint('BUSINESS PROFILE ERROR: $error');
-      debugPrint('STACK TRACE: $stackTrace');
-      debugPrint('========================================');
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Business profile error: $error'),
-          backgroundColor: AppColors.rust,
-          duration: const Duration(seconds: 10),
-        ),
-      );
-
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  String _authErrorMessage(String code) {
-    switch (code) {
-      case 'email-already-in-use':
-        return 'An account already exists with this email.';
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'weak-password':
-        return 'Use a stronger password.';
-      case 'operation-not-allowed':
-        return 'Email/password authentication is not enabled.';
-      case 'network-request-failed':
-        return 'Please check your internet connection.';
-      default:
-        return 'Unable to create your account. Please try again.';
+  String _authErrorMessage(String message) {
+    final lower = message.toLowerCase();
+
+    if (lower.contains('already registered') || lower.contains('already exists')) {
+      return 'An account already exists with this email.';
     }
+    if (lower.contains('password')) {
+      return 'Use a stronger password (at least 6 characters).';
+    }
+    if (lower.contains('network')) {
+      return 'Please check your internet connection.';
+    }
+
+    return 'Unable to create your account. Please try again.';
   }
 
   @override
@@ -135,18 +119,13 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
-
                     const SizedBox(height: 8),
-
                     Text(
                       'Start managing your client follow-ups in one place.',
                       style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.inkSoft),
+                          ?.copyWith(color: context.palette.textSecondary),
                     ),
-
                     const SizedBox(height: 32),
-
-                    // Business name
                     TextFormField(
                       controller: _businessNameController,
                       textInputAction: TextInputAction.next,
@@ -158,18 +137,13 @@ class _SignupScreenState extends State<SignupScreen> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Enter your business name.';
                         }
-
                         if (value.trim().length < 2) {
                           return 'Business name is too short.';
                         }
-
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Email
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -180,22 +154,16 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       validator: (value) {
                         final email = value?.trim() ?? '';
-
                         if (email.isEmpty) {
                           return 'Enter your email address.';
                         }
-
                         if (!email.contains('@')) {
                           return 'Enter a valid email address.';
                         }
-
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Password
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -221,18 +189,13 @@ class _SignupScreenState extends State<SignupScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Enter a password.';
                         }
-
                         if (value.length < 6) {
                           return 'Password must contain at least 6 characters.';
                         }
-
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Confirm password
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
@@ -250,8 +213,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                           onPressed: () {
                             setState(() {
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword;
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
                             });
                           },
                         ),
@@ -260,41 +222,29 @@ class _SignupScreenState extends State<SignupScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Confirm your password.';
                         }
-
                         if (value != _passwordController.text) {
                           return 'Passwords do not match.';
                         }
-
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 24),
-
                     SizedBox(
                       height: 52,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _signup,
                         child: _isLoading
                             ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                             : const Text('Create account'),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     TextButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                              Navigator.pop(context);
-                            },
+                      onPressed: _isLoading ? null : () => Navigator.pop(context),
                       child: const Text('Already have an account? Sign in'),
                     ),
                   ],
