@@ -66,6 +66,30 @@ class RequestService {
         .maybeSingle();
   }
 
+  /// Returns this client's active (pending/overdue) requests whose title
+  /// matches [title] (case/whitespace-insensitive) — GLOBAL_READINESS §1.H,
+  /// "warn before accidentally creating a duplicate request."
+  Future<List<Map<String, dynamic>>> findPossibleDuplicateRequests({
+    required String clientId,
+    required String title,
+  }) async {
+    final uid = _client.auth.currentUser!.id;
+    final trimmedTitle = title.trim().toLowerCase();
+    if (trimmedTitle.isEmpty) return [];
+
+    final rows = await _client
+        .from('requests')
+        .select('id, title, status, created_at')
+        .eq('business_id', uid)
+        .eq('client_id', clientId)
+        .inFilter('status', ['pending', 'overdue']);
+
+    return List<Map<String, dynamic>>.from(rows)
+        .where((r) =>
+    (r['title'] as String? ?? '').trim().toLowerCase() == trimmedTitle)
+        .toList();
+  }
+
   Future<String> createRequest({
     required String clientId,
     required List<RequestItemDraft> items,
@@ -137,16 +161,76 @@ class RequestService {
     await _recalculateCompletion(requestId);
   }
 
+  /// Adds a new required item to an existing request (GLOBAL_READINESS §1.J
+  /// — "item is added"). If the request had already been completed, adding
+  /// a missing item resumes the follow-up workflow.
+  Future<void> addRequestItem({
+    required String requestId,
+    required String name,
+    String? instructions,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw Exception('Item name is required.');
+    }
+
+    await _client.from('request_items').insert({
+      'request_id': requestId,
+      'name': trimmedName,
+      'instructions':
+      (instructions == null || instructions.trim().isEmpty) ? null : instructions.trim(),
+      'status': 'missing',
+    });
+
+    await _logFollowUp(requestId: requestId, action: 'item_added', notes: trimmedName);
+    await _recalculateCompletion(requestId);
+  }
+
+  /// Removes a required item from an existing request (GLOBAL_READINESS
+  /// §1.J — "item is removed"). Refuses to remove the last remaining item —
+  /// a request must always have at least one required item.
+  Future<void> removeRequestItem({
+    required String requestId,
+    required String itemId,
+  }) async {
+    final remaining =
+    await _client.from('request_items').select('id').eq('request_id', requestId);
+
+    if (remaining.length <= 1) {
+      throw Exception('A request needs at least one item. Cancel the request instead.');
+    }
+
+    final item = await _client
+        .from('request_items')
+        .select('name')
+        .eq('id', itemId)
+        .maybeSingle();
+
+    await _client.from('request_items').delete().eq('id', itemId);
+
+    await _logFollowUp(
+      requestId: requestId,
+      action: 'item_removed',
+      notes: item?['name'] as String?,
+    );
+    await _recalculateCompletion(requestId);
+  }
+
   Future<void> _recalculateCompletion(String requestId) async {
     final items =
     await _client.from('request_items').select('status').eq('request_id', requestId);
 
     final allReceived = items.isNotEmpty && items.every((row) => row['status'] == 'received');
 
-    final request =
-    await _client.from('requests').select('status').eq('id', requestId).maybeSingle();
+    final request = await _client
+        .from('requests')
+        .select('status, created_at, reminder_cadence, last_contacted_at')
+        .eq('id', requestId)
+        .maybeSingle();
 
-    final currentStatus = request?['status'] as String?;
+    if (request == null) return;
+
+    final currentStatus = request['status'] as String?;
     if (currentStatus == 'cancelled') return;
 
     if (allReceived && currentStatus != 'complete') {
@@ -155,14 +239,36 @@ class RequestService {
         'completed_at': DateTime.now().toIso8601String(),
       }).eq('id', requestId);
     } else if (!allReceived && currentStatus == 'complete') {
-      // An item was reopened after completion — resume the workflow (Flow I).
+      // An item was reopened, or a new missing item was added, after
+      // completion — resume the workflow (Flow I) and schedule a fresh
+      // follow-up from the reminder cadence.
+      final createdAt = DateTime.parse(request['created_at'] as String);
+      final cadence =
+          (request['reminder_cadence'] as List?)?.map((e) => e as int).toList() ??
+              defaultCadence;
+      final lastContactedAt = request['last_contacted_at'] != null
+          ? DateTime.parse(request['last_contacted_at'] as String)
+          : null;
+      final nextFollowUp = lastContactedAt != null
+          ? _computeNextFollowUp(cadence, createdAt, lastContactedAt)
+          : createdAt.add(Duration(days: cadence.first));
+
       await _client.from('requests').update({
         'status': 'pending',
         'completed_at': null,
+        'next_follow_up_at': nextFollowUp?.toIso8601String(),
       }).eq('id', requestId);
     }
   }
-
+  /// Restores a request to an explicit set of field values. Used to power
+  /// "Undo" on reversible actions like mark contacted / cancel
+  /// (GLOBAL_READINESS §1.AF).
+  Future<void> revertRequestFields({
+    required String requestId,
+    required Map<String, dynamic> fields,
+  }) async {
+    await _client.from('requests').update(fields).eq('id', requestId);
+  }
   /// Records that the business contacted the client (Flow F), then
   /// recalculates the next follow-up date from the configured reminder
   /// cadence. Mirrors the logic the optional Edge Function would run later.
@@ -304,6 +410,47 @@ class RequestService {
       requestId: requestId,
       action: 'due_date_extended',
       notes: 'New due date: ${_formatDate(newDueDate)}',
+    );
+  }
+
+  /// Updates a single request's reminder cadence (GLOBAL_READINESS §1.J —
+  /// "reminder cadence changes") and recalculates its next follow-up date
+  /// from the new schedule, same logic as markContacted/reopenRequest.
+  Future<void> updateReminderCadence({
+    required String requestId,
+    required List<int> cadence,
+  }) async {
+    if (cadence.isEmpty) {
+      throw Exception('Choose at least one reminder day.');
+    }
+    final sorted = [...cadence]..sort();
+
+    final request = await _client
+        .from('requests')
+        .select('created_at, last_contacted_at, status')
+        .eq('id', requestId)
+        .single();
+
+    final createdAt = DateTime.parse(request['created_at'] as String);
+    final lastContactedAt = request['last_contacted_at'] != null
+        ? DateTime.parse(request['last_contacted_at'] as String)
+        : null;
+    final currentStatus = request['status'] as String?;
+
+    final nextFollowUp = lastContactedAt != null
+        ? _computeNextFollowUp(sorted, createdAt, lastContactedAt)
+        : createdAt.add(Duration(days: sorted.first));
+
+    await _client.from('requests').update({
+      'reminder_cadence': sorted,
+      'next_follow_up_at': nextFollowUp?.toIso8601String(),
+      if (nextFollowUp == null && currentStatus == 'pending') 'status': 'overdue',
+    }).eq('id', requestId);
+
+    await _logFollowUp(
+      requestId: requestId,
+      action: 'cadence_updated',
+      notes: 'New schedule: Day ${sorted.join(', ')}',
     );
   }
 

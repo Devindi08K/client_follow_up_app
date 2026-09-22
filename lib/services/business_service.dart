@@ -3,6 +3,35 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class BusinessService {
   final SupabaseClient _client = Supabase.instance.client;
 
+  /// Returns the existing business profile, or creates one if this is the
+  /// account's first time reaching an authenticated screen (covers both the
+  /// immediate-signup case and the email-confirmation-required case, where
+  /// no session existed yet at signup time to safely insert under RLS).
+  Future<Map<String, dynamic>> ensureBusinessProfile({String fallbackName = ''}) async {
+    final existing = await getBusinessProfile();
+    if (existing != null) return existing;
+
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found.');
+
+    final name = fallbackName.trim().isNotEmpty
+        ? fallbackName.trim()
+        : (user.email?.split('@').first ?? 'My Business');
+
+    final row = await _client
+        .from('businesses')
+        .insert({
+      'id': user.id,
+      'name': name,
+      'email': user.email,
+      'plan': 'free',
+    })
+        .select()
+        .single();
+
+    return row;
+  }
+
   Future<void> createBusinessProfile({required String businessName}) async {
     final user = _client.auth.currentUser;
 

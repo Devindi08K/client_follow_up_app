@@ -26,6 +26,12 @@ class FollowUpHistoryScreen extends StatelessWidget {
         return 'Reopened';   // was 'Item reopened' — now covers both item- and request-level
       case 'due_date_extended':
         return 'Due date extended';
+      case 'item_added':
+        return 'Item added';
+      case 'item_removed':
+        return 'Item removed';
+      case 'cadence_updated':
+        return 'Reminder schedule updated';
       default:
         return action;
     }
@@ -43,6 +49,12 @@ class FollowUpHistoryScreen extends StatelessWidget {
         return Icons.refresh_outlined;
       case 'due_date_extended':
         return Icons.event_outlined;
+      case 'item_added':
+        return Icons.add_circle_outline;
+      case 'item_removed':
+        return Icons.remove_circle_outline;
+      case 'cadence_updated':
+        return Icons.schedule_outlined;
       default:
         return Icons.circle_outlined;
     }

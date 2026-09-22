@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../models/client.dart';
 import '../../../models/request_item_draft.dart';
@@ -86,6 +87,20 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
     setState(() => _sending = true);
 
     try {
+      final duplicates = await _requestService.findPossibleDuplicateRequests(
+        clientId: _selectedClient!.id,
+        title: _title,
+      );
+
+      if (duplicates.isNotEmpty) {
+        setState(() => _sending = false);
+        if (!mounted) return;
+        final proceed = await _confirmDuplicateRequest(duplicates);
+        if (proceed != true) return;
+        if (!mounted) return;
+        setState(() => _sending = true);
+      }
+
       await _requestService.createRequest(
         clientId: _selectedClient!.id,
         items: _items,
@@ -104,6 +119,50 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  Future<bool?> _confirmDuplicateRequest(List<Map<String, dynamic>> duplicates) {
+    final dateFormat = DateFormat('MMM d, yyyy');
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Possible duplicate request'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_selectedClient!.name} already has an active request with this title:',
+            ),
+            const SizedBox(height: 12),
+            ...duplicates.take(3).map((r) {
+              final status = r['status'] as String? ?? 'pending';
+              final createdAt = DateTime.tryParse(r['created_at'] as String? ?? '');
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '• ${r['title']} '
+                      '(${status[0].toUpperCase()}${status.substring(1)}'
+                      '${createdAt != null ? ' · created ${dateFormat.format(createdAt)}' : ''})',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              );
+            }),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Create anyway'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

@@ -27,6 +27,10 @@ class AuthService {
     return _client.auth.signOut();
   }
 
+  Future<void> resetPassword({required String email}) {
+    return _client.auth.resetPasswordForEmail(email.trim());
+  }
+
   User? get currentUser => _client.auth.currentUser;
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;

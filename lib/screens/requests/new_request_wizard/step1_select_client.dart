@@ -39,9 +39,33 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
 
   Future<void> _createClient() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_emailController.text.trim().isEmpty &&
+        _phoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least an email or a phone number.')),
+      );
+      return;
+    }
+
     setState(() => _creating = true);
 
     try {
+      final duplicates = await _clientService.findPossibleDuplicates(
+        name: _nameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+      );
+
+      if (duplicates.isNotEmpty) {
+        setState(() => _creating = false);
+        if (!mounted) return;
+        final proceed = await _confirmDuplicate(duplicates);
+        if (proceed != true) return;
+        if (!mounted) return;
+        setState(() => _creating = true);
+      }
+
       final client = await _clientService.createClient(
         name: _nameController.text,
         email: _emailController.text,
@@ -63,6 +87,42 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
     } finally {
       if (mounted) setState(() => _creating = false);
     }
+  }
+
+  Future<bool?> _confirmDuplicate(List<ClientModel> duplicates) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Possible duplicate client'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This looks similar to an existing client:'),
+            const SizedBox(height: 12),
+            ...duplicates.take(3).map((c) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '• ${c.name}'
+                    '${c.email.isNotEmpty ? ' — ${c.email}' : ''}'
+                    '${c.phone.isNotEmpty ? ' — ${c.phone}' : ''}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add anyway'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -137,11 +197,10 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Client email'),
+                    decoration: const InputDecoration(labelText: 'Client email (optional)'),
                     validator: (v) {
                       final email = v?.trim() ?? '';
-                      if (email.isEmpty) return 'Enter an email';
-                      if (!email.contains('@')) return 'Enter a valid email';
+                      if (email.isNotEmpty && !email.contains('@')) return 'Enter a valid email';
                       return null;
                     },
                   ),

@@ -113,11 +113,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                 TextFormField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Client email'),
+                  decoration: const InputDecoration(labelText: 'Client email (optional)'),
                   validator: (v) {
                     final email = v?.trim() ?? '';
-                    if (email.isEmpty) return 'Enter an email';
-                    if (!email.contains('@')) return 'Enter a valid email';
+                    if (email.isNotEmpty && !email.contains('@')) return 'Enter a valid email';
                     return null;
                   },
                 ),
@@ -131,9 +130,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      Navigator.pop(context, true);
+                    if (!formKey.currentState!.validate()) return;
+                    if (emailController.text.trim().isEmpty &&
+                        phoneController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Add at least an email or a phone number.')),
+                      );
+                      return;
                     }
+                    Navigator.pop(context, true);
                   },
                   child: const Text('Save changes'),
                 ),
@@ -148,6 +154,22 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
 
     setState(() => _busy = true);
     try {
+      final duplicates = await _clientService.findPossibleDuplicates(
+        name: nameController.text,
+        email: emailController.text,
+        phone: phoneController.text,
+        excludeId: _client.id,
+      );
+
+      if (duplicates.isNotEmpty) {
+        setState(() => _busy = false);
+        if (!mounted) return;
+        final proceed = await _confirmDuplicate(duplicates);
+        if (proceed != true) return;
+        if (!mounted) return;
+        setState(() => _busy = true);
+      }
+
       final updated = await _clientService.updateClient(
         id: _client.id,
         name: nameController.text,
@@ -159,6 +181,115 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
       _showSuccess('Client updated.');
     } catch (e) {
       _showError('Could not save changes: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<bool?> _confirmDuplicate(List<ClientModel> duplicates) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Possible duplicate client'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This looks similar to another client:'),
+            const SizedBox(height: 12),
+            ...duplicates.take(3).map((c) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '• ${c.name}'
+                    '${c.email.isNotEmpty ? ' — ${c.email}' : ''}'
+                    '${c.phone.isNotEmpty ? ' — ${c.phone}' : ''}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Future<void> _toggleArchived() async {
+    final archiving = !_client.isArchived;
+
+    if (archiving) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Archive ${_client.name}?'),
+          content: const Text(
+              'Archived clients are hidden from your client list and can\'t receive new requests, but their history stays intact. You can unarchive anytime.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, true), child: const Text('Archive')),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      if (archiving) {
+        await _clientService.archiveClient(_client.id);
+      } else {
+        await _clientService.unarchiveClient(_client.id);
+      }
+      if (!mounted) return;
+      setState(() {
+        _client = ClientModel(
+          id: _client.id,
+          name: _client.name,
+          email: _client.email,
+          phone: _client.phone,
+          archivedAt: archiving ? DateTime.now() : null,
+        );
+      });
+
+      if (archiving) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Client archived.'),
+            action: SnackBarAction(
+              label: 'Undo',
+              onPressed: () async {
+                await _clientService.unarchiveClient(_client.id);
+                if (!mounted) return;
+                setState(() {
+                  _client = ClientModel(
+                    id: _client.id,
+                    name: _client.name,
+                    email: _client.email,
+                    phone: _client.phone,
+                    archivedAt: null,
+                  );
+                });
+              },
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } else {
+        _showSuccess('Client unarchived.');
+      }
+    } catch (_) {
+      _showError('Could not update this client.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -215,6 +346,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
         title: Text(_client.name),
         actions: [
           IconButton(
+            tooltip: _client.isArchived ? 'Unarchive client' : 'Archive client',
+            icon: Icon(_client.isArchived ? Icons.unarchive_outlined : Icons.archive_outlined),
+            onPressed: _busy ? null : _toggleArchived,
+          ),
+          IconButton(
             tooltip: 'Edit client',
             icon: const Icon(Icons.edit_outlined),
             onPressed: _busy ? null : _editClient,
@@ -249,15 +385,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.email_outlined, size: 18, color: AppColors.sageDeep),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(_client.email)),
-                      ],
-                    ),
+                    if (_client.email.isNotEmpty)
+                      Row(
+                        children: [
+                          const Icon(Icons.email_outlined, size: 18, color: AppColors.sageDeep),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(_client.email)),
+                        ],
+                      ),
                     if (_client.phone.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      if (_client.email.isNotEmpty) const SizedBox(height: 8),
                       Row(
                         children: [
                           const Icon(Icons.phone_outlined, size: 18, color: AppColors.sageDeep),
@@ -266,12 +403,42 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                         ],
                       ),
                     ],
+                    if (_client.email.isEmpty && _client.phone.isEmpty)
+                      Row(
+                        children: [
+                          const Icon(Icons.info_outline, size: 18, color: AppColors.inkSoft),
+                          const SizedBox(width: 8),
+                          Text('No contact info on file',
+                              style: TextStyle(color: AppColors.inkSoft)),
+                        ],
+                      ),
                     const SizedBox(height: 14),
-                    ElevatedButton.icon(
-                      onPressed: _busy ? null : _openNewRequest,
-                      icon: const Icon(Icons.add),
-                      label: const Text('New request'),
-                    ),
+                    if (_client.isArchived)
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.sageLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.archive_outlined, size: 18, color: AppColors.sageDeep),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'This client is archived. Unarchive to create a new request.',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ElevatedButton.icon(
+                        onPressed: _busy ? null : _openNewRequest,
+                        icon: const Icon(Icons.add),
+                        label: const Text('New request'),
+                      ),
                   ],
                 ),
               ),

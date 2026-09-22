@@ -59,6 +59,28 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
+  /// Shows a confirmation with an inline Undo action (GLOBAL_READINESS
+  /// §1.AF). [onUndo] should restore the exact prior state, not just
+  /// perform the opposite action, since the two aren't always symmetric.
+  void _showUndoSnackBar({
+    required String message,
+    required Future<void> Function() onUndo,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            if (!mounted) return;
+            onUndo();
+          },
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
   Map<String, dynamic> get _clientData =>
       (_request?['clients'] as Map<String, dynamic>?) ?? const {};
 
@@ -135,11 +157,29 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
     if (channel == null) return;
 
+    final previousStatus = _request?['status'] as String?;
+    final previousLastContacted = _request?['last_contacted_at'];
+    final previousNextFollowUp = _request?['next_follow_up_at'];
+
     setState(() => _busy = true);
     try {
       await _requestService.markContacted(requestId: widget.requestId, channel: channel);
-      _showSuccess('Marked as contacted.');
       await _load();
+      if (!mounted) return;
+      _showUndoSnackBar(
+        message: 'Marked as contacted.',
+        onUndo: () async {
+          await _requestService.revertRequestFields(
+            requestId: widget.requestId,
+            fields: {
+              'status': previousStatus,
+              'last_contacted_at': previousLastContacted,
+              'next_follow_up_at': previousNextFollowUp,
+            },
+          );
+          await _load();
+        },
+      );
     } catch (_) {
       _showError('Could not save this. Please try again.');
     } finally {
@@ -157,14 +197,28 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   Future<void> _toggleItem(Map<String, dynamic> item) async {
     final received = item['status'] != 'received';
+    final itemId = item['id'] as String;
+
     setState(() => _busy = true);
     try {
       await _requestService.setItemStatus(
         requestId: widget.requestId,
-        itemId: item['id'] as String,
+        itemId: itemId,
         received: received,
       );
       await _load();
+      if (!mounted) return;
+      _showUndoSnackBar(
+        message: received ? 'Marked as received.' : 'Marked as missing.',
+        onUndo: () async {
+          await _requestService.setItemStatus(
+            requestId: widget.requestId,
+            itemId: itemId,
+            received: !received,
+          );
+          await _load();
+        },
+      );
     } catch (_) {
       _showError('Could not update this item.');
     } finally {
@@ -211,6 +265,147 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  Future<void> _addItem() async {
+    final nameController = TextEditingController();
+    final instructionsController = TextEditingController();
+
+    final added = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add item'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Item name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: instructionsController,
+              decoration: const InputDecoration(labelText: 'Instructions (optional)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (added != true || nameController.text.trim().isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      await _requestService.addRequestItem(
+        requestId: widget.requestId,
+        name: nameController.text,
+        instructions: instructionsController.text,
+      );
+      _showSuccess('Item added.');
+      await _load();
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _removeItem(Map<String, dynamic> item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove "${item['name']}"?'),
+        content: const Text('This removes the item from the request permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove', style: TextStyle(color: AppColors.rust)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    try {
+      await _requestService.removeRequestItem(
+        requestId: widget.requestId,
+        itemId: item['id'] as String,
+      );
+      _showSuccess('Item removed.');
+      await _load();
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _editCadence() async {
+    final current =
+        (_request?['reminder_cadence'] as List?)?.map((e) => e as int).toList() ??
+            List<int>.from(RequestService.defaultCadence);
+    final controller = TextEditingController(text: current.join(', '));
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit reminder schedule'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Days after creation, comma-separated',
+            hintText: 'e.g. 1, 3, 7',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text('Save')),
+        ],
+      ),
+    );
+
+    if (result == null) return;
+
+    final parsed = result
+        .split(',')
+        .map((s) => int.tryParse(s.trim()))
+        .whereType<int>()
+        .where((n) => n > 0)
+        .toSet()
+        .toList()
+      ..sort();
+
+    if (parsed.isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      await _requestService.updateReminderCadence(requestId: widget.requestId, cadence: parsed);
+      _showSuccess('Reminder schedule updated.');
+      await _load();
+    } catch (_) {
+      _showError('Could not update the reminder schedule.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _cancelRequest() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -233,11 +428,26 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
     if (confirmed != true) return;
 
+    final previousStatus = _request?['status'] as String?;
+
     setState(() => _busy = true);
     try {
       await _requestService.cancelRequest(widget.requestId);
-      _showSuccess('Request cancelled.');
       await _load();
+      if (!mounted) return;
+      _showUndoSnackBar(
+        message: 'Request cancelled.',
+        onUndo: () async {
+          await _requestService.revertRequestFields(
+            requestId: widget.requestId,
+            fields: {
+              'status': previousStatus ?? 'pending',
+              'cancelled_at': null,
+            },
+          );
+          await _load();
+        },
+      );
     } catch (_) {
       _showError('Could not cancel this request.');
     } finally {
@@ -298,6 +508,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final lastContacted = _parseDate(_request!['last_contacted_at']);
     final nextFollowUp = _parseDate(_request!['next_follow_up_at']);
     final isActive = status == 'pending' || status == 'overdue';
+    final canEditItems = status != 'cancelled';
     final dateFormat = DateFormat('MMM d, yyyy');
 
     return Scaffold(
@@ -370,6 +581,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                             ? 'No further follow-ups scheduled'
                             : 'Next follow-up ${dateFormat.format(nextFollowUp)}',
                       ),
+                    if (isActive)
+                      _InfoRow(
+                        icon: Icons.repeat_outlined,
+                        label:
+                        'Reminder days: ${((_request!['reminder_cadence'] as List?)?.join(', ')) ?? '—'}',
+                      ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -382,11 +599,22 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text('Required items',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Required items',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
+                            if (canEditItems)
+                              TextButton.icon(
+                                onPressed: _busy ? null : _addItem,
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('Add item'),
+                              ),
+                          ],
+                        ),
                         const SizedBox(height: 10),
                         if (loadingItems)
                           const Padding(
@@ -403,6 +631,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               item: item,
                               busy: _busy,
                               onToggle: () => _toggleItem(item),
+                              onDelete: canEditItems && items.length > 1
+                                  ? () => _removeItem(item)
+                                  : null,
                             ))
                                 .toList(),
                           ),
@@ -443,6 +674,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               onPressed: _busy ? null : _extendDueDate, // ← new
                               icon: const Icon(Icons.event_outlined),   // ← new
                               label: const Text('Extend due date'),     // ← new
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              onPressed: _busy ? null : _editCadence,
+                              icon: const Icon(Icons.schedule_outlined),
+                              label: const Text('Edit reminder schedule'),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -597,8 +837,14 @@ class _ItemTile extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool busy;
   final VoidCallback onToggle;
+  final VoidCallback? onDelete;
 
-  const _ItemTile({required this.item, required this.busy, required this.onToggle});
+  const _ItemTile({
+    required this.item,
+    required this.busy,
+    required this.onToggle,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -627,13 +873,29 @@ class _ItemTile extends StatelessWidget {
           ),
         ),
         subtitle: instructions != null && instructions.isNotEmpty ? Text(instructions) : null,
-        secondary: Text(
-          received ? 'Received' : 'Missing',
-          style: TextStyle(
-            color: AppColors.forStatus(received ? 'complete' : 'pending'),
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
+        secondary: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              received ? 'Received' : 'Missing',
+              style: TextStyle(
+                color: AppColors.forStatus(received ? 'complete' : 'pending'),
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+            if (onDelete != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Remove item',
+                icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.rust),
+                onPressed: busy ? null : onDelete,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ],
         ),
       ),
     );
