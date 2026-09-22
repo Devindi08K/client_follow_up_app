@@ -245,11 +245,11 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
                         }
                       },
                       child: _sending
-                          ? const SizedBox(
+                          ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: AppColors.paperRaised))
+                              strokeWidth: 2, color: context.palette.surface1))
                           : Text(_currentStep < 4 ? 'Next' : 'Create request'),
                     ),
                   ),

@@ -120,7 +120,7 @@ class _MessageScreenState extends State<MessageScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.rust),
+      SnackBar(content: Text(message), backgroundColor:AppStatusColors.rust),
     );
   }
 
@@ -149,7 +149,7 @@ class _MessageScreenState extends State<MessageScreen> {
                 children: widget.missingItemNames
                     .map((name) => Chip(
                   label: Text(name),
-                  backgroundColor: AppColors.sageLight,
+                  backgroundColor: context.palette.surface2,
                   side: BorderSide.none,
                 ))
                     .toList(),
@@ -208,11 +208,9 @@ class _MessageScreenState extends State<MessageScreen> {
                   onPressed: _busy
                       ? null
                       : () async {
+                    final navigator = Navigator.of(context);
                     await _markContacted('manual');
-
-                    if (!mounted) return;
-
-                    Navigator.pop(context, true);
+                    navigator.pop(true);
                   },
                   child: const Text('Mark contacted without sending'),
                 ),

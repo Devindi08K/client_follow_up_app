@@ -80,7 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final data = await _businessService.ensureBusinessProfile();
       if (!mounted) return;
       setState(() {
-        _businessName = data?['name'] as String? ?? 'Your Business';
+        _businessName = data['name'] as String? ?? 'Your Business';
         _loadingProfile = false;
       });
     } catch (_) {
@@ -257,12 +257,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 else
                   Text(
                     _businessName,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.inkSoft),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.palette.textSecondary),
                   ),
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.inkSoft),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary),
                 ),
                 const SizedBox(height: 28),
                 Text(
@@ -357,17 +357,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.paperRaised,
+                      color: context.palette.surface1,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.line),
+                      border: Border.all(color: context.palette.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.assignment_turned_in_outlined,
                           size: 32,
-                          color: AppColors.sageDeep,
+                          color: context.palette.primary,
                         ),
                         const SizedBox(height: 14),
                         Text(
@@ -385,7 +385,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
-                              ?.copyWith(color: AppColors.inkSoft),
+                              ?.copyWith(color: context.palette.textSecondary),
                         ),
                         const SizedBox(height: 18),
                         ElevatedButton.icon(
@@ -427,14 +427,14 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.paperRaised,
+          color: context.palette.surface1,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppColors.line),
+          border: Border.all(color: context.palette.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppColors.sageDeep, size: 25),
+            Icon(icon, color: context.palette.primary, size: 25),
             const SizedBox(height: 14),
             Text(
               value,
@@ -443,7 +443,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.inkSoft),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.palette.textSecondary),
             ),
           ],
         ),
@@ -465,9 +465,9 @@ class _FollowUpCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: AppColors.paperRaised,
+        color: context.palette.surface1,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: context.palette.border),
       ),
       child: ListTile(
         onTap: onTap,
@@ -477,13 +477,13 @@ class _FollowUpCard extends StatelessWidget {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: AppColors.forStatus(statusKey).withValues(alpha: 0.15),
+            color: AppStatusColors.forStatus(statusKey).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
             row.isOverdue ? 'Overdue' : 'Due today',
             style: TextStyle(
-              color: AppColors.forStatus(statusKey),
+              color: AppStatusColors.forStatus(statusKey),
               fontWeight: FontWeight.w700,
               fontSize: 12,
             ),

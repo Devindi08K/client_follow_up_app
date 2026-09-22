@@ -45,13 +45,13 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.rust),
+      SnackBar(content: Text(message), backgroundColor: AppStatusColors.rust),
     );
   }
 
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.forest),
+      SnackBar(content: Text(message), backgroundColor: AppStatusColors.forest),
     );
   }
 
@@ -309,7 +309,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.rust)),
+            child: const Text('Delete', style: TextStyle(color: AppStatusColors.rust)),
           ),
         ],
       ),
@@ -378,9 +378,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.paperRaised,
+                  color: context.palette.surface1,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.line),
+                  border: Border.all(color: context.palette.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -388,7 +388,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                     if (_client.email.isNotEmpty)
                       Row(
                         children: [
-                          const Icon(Icons.email_outlined, size: 18, color: AppColors.sageDeep),
+                          Icon(Icons.email_outlined, size: 18, color: context.palette.primary),
                           const SizedBox(width: 8),
                           Expanded(child: Text(_client.email)),
                         ],
@@ -397,7 +397,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                       if (_client.email.isNotEmpty) const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.phone_outlined, size: 18, color: AppColors.sageDeep),
+                          Icon(Icons.phone_outlined, size: 18, color: context.palette.primary),
                           const SizedBox(width: 8),
                           Text(_client.phone),
                         ],
@@ -406,10 +406,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                     if (_client.email.isEmpty && _client.phone.isEmpty)
                       Row(
                         children: [
-                          const Icon(Icons.info_outline, size: 18, color: AppColors.inkSoft),
+                          Icon(Icons.info_outline, size: 18, color: context.palette.textSecondary),
                           const SizedBox(width: 8),
                           Text('No contact info on file',
-                              style: TextStyle(color: AppColors.inkSoft)),
+                              style: TextStyle(color: context.palette.textSecondary)),
                         ],
                       ),
                     const SizedBox(height: 14),
@@ -417,14 +417,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppColors.sageLight,
+                          color: context.palette.surface2,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.archive_outlined, size: 18, color: AppColors.sageDeep),
-                            SizedBox(width: 8),
-                            Expanded(
+                            Icon(Icons.archive_outlined, size: 18, color: context.palette.primary),
+                            const SizedBox(width: 8),
+                            const Expanded(
                               child: Text(
                                 'This client is archived. Unarchive to create a new request.',
                                 style: TextStyle(fontSize: 13),
@@ -504,7 +504,7 @@ class _RequestList extends StatelessWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Text(emptyText, style: TextStyle(color: AppColors.inkSoft)),
+          child: Text(emptyText, style: TextStyle(color: context.palette.textSecondary)),
         ),
       );
     }
@@ -514,7 +514,7 @@ class _RequestList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       itemCount: rows.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final row = rows[index];
         final status = row['status'] as String? ?? 'pending';
@@ -522,9 +522,9 @@ class _RequestList extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: AppColors.paperRaised,
+            color: context.palette.surface1,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppColors.line),
+            border: Border.all(color: context.palette.border),
           ),
           child: ListTile(
             title: Text(row['title'] as String? ?? 'Request',
@@ -533,13 +533,13 @@ class _RequestList extends StatelessWidget {
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.forStatus(status).withValues(alpha: 0.15),
+                color: AppStatusColors.forStatus(status).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 status[0].toUpperCase() + status.substring(1),
                 style: TextStyle(
-                  color: AppColors.forStatus(status),
+                  color: AppStatusColors.forStatus(status),
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),

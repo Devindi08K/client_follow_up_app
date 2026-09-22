@@ -49,13 +49,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.rust),
+      SnackBar(content: Text(message), backgroundColor: AppStatusColors.rust),
     );
   }
 
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.forest),
+      SnackBar(content: Text(message), backgroundColor: AppStatusColors.forest),
     );
   }
 
@@ -332,7 +332,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove', style: TextStyle(color: AppColors.rust)),
+            child: const Text('Remove', style: TextStyle(color: AppStatusColors.rust)),
           ),
         ],
       ),
@@ -548,7 +548,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 _StatusHeader(status: status, title: title),
                 if (description != null && description.trim().isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  Text(description, style: TextStyle(color: AppColors.inkSoft)),
+                  Text(description, style: TextStyle(color: context.palette.textSecondary)),
                 ],
                 const SizedBox(height: 20),
                 _InfoCard(
@@ -623,7 +623,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           )
                         else if (items.isEmpty)
                           Text('No items on this request.',
-                              style: TextStyle(color: AppColors.inkSoft))
+                              style: TextStyle(color: context.palette.textSecondary))
                         else
                           Column(
                             children: items
@@ -698,7 +698,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppColors.sageLight,
+                              color: context.palette.surface2,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
@@ -707,7 +707,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                   status == 'complete'
                                       ? Icons.check_circle_outline
                                       : Icons.block_outlined,
-                                  color: AppColors.forStatus(status),
+                                  color: AppStatusColors.forStatus(status),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -766,13 +766,13 @@ class _StatusHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: AppColors.forStatus(status).withValues(alpha: 0.15),
+            color: AppStatusColors.forStatus(status).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
             status[0].toUpperCase() + status.substring(1),
             style: TextStyle(
-              color: AppColors.forStatus(status),
+              color: AppStatusColors.forStatus(status),
               fontWeight: FontWeight.w700,
               fontSize: 12,
             ),
@@ -793,9 +793,9 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.paperRaised,
+        color: context.palette.surface1,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: context.palette.border),
       ),
       child: Column(children: children),
     );
@@ -815,7 +815,7 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.sageDeep),
+          Icon(icon, size: 20, color: context.palette.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -823,7 +823,7 @@ class _InfoRow extends StatelessWidget {
               children: [
                 Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
                 if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(subtitle!, style: TextStyle(color: AppColors.inkSoft, fontSize: 13)),
+                  Text(subtitle!, style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
               ],
             ),
           ),
@@ -855,9 +855,9 @@ class _ItemTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.paperRaised,
+        color: context.palette.surface1,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: context.palette.border),
       ),
       child: CheckboxListTile(
         contentPadding: EdgeInsets.zero,
@@ -869,7 +869,7 @@ class _ItemTile extends StatelessWidget {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             decoration: received ? TextDecoration.lineThrough : null,
-            color: received ? AppColors.inkSoft : AppColors.ink,
+            color: received ? context.palette.textSecondary : context.palette.textMain,
           ),
         ),
         subtitle: instructions != null && instructions.isNotEmpty ? Text(instructions) : null,
@@ -879,7 +879,7 @@ class _ItemTile extends StatelessWidget {
             Text(
               received ? 'Received' : 'Missing',
               style: TextStyle(
-                color: AppColors.forStatus(received ? 'complete' : 'pending'),
+                color: AppStatusColors.forStatus(received ? 'complete' : 'pending'),
                 fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),
@@ -888,7 +888,7 @@ class _ItemTile extends StatelessWidget {
               const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Remove item',
-                icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.rust),
+                icon: const Icon(Icons.delete_outline, size: 20, color: AppStatusColors.rust),
                 onPressed: busy ? null : onDelete,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),

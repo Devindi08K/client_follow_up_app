@@ -150,28 +150,28 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
                 if (clients.isEmpty && !_showNewClientForm) {
                   return Center(
                     child: Text('No clients yet. Add your first one below.',
-                        style: TextStyle(color: AppColors.inkSoft)),
+                        style: TextStyle(color: context.palette.textSecondary)),
                   );
                 }
 
                 return ListView.separated(
                   itemCount: clients.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final client = clients[index];
                     final selected = widget.selectedClient?.id == client.id;
 
                     return ListTile(
                       tileColor:
-                      selected ? AppColors.sageLight : AppColors.paperRaised,
+                      selected ? context.palette.surface2 : context.palette.surface1,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
-                        side: const BorderSide(color: AppColors.line),
+                        side: BorderSide(color: context.palette.border),
                       ),
                       title: Text(client.name),
                       subtitle: Text(client.email),
                       trailing: selected
-                          ? const Icon(Icons.check_circle, color: AppColors.forest)
+                          ? const Icon(Icons.check_circle, color: AppStatusColors.forest)
                           : null,
                       onTap: () => widget.onClientSelected(client),
                     );

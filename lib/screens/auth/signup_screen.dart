@@ -66,7 +66,7 @@ class _SignupScreenState extends State<SignupScreen> {
           : 'Account created successfully.';
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.forest),
+        SnackBar(content: Text(message), backgroundColor: AppStatusColors.forest),
       );
 
       Navigator.pop(context);
@@ -75,7 +75,7 @@ class _SignupScreenState extends State<SignupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_authErrorMessage(error.message)),
-          backgroundColor: AppColors.rust,
+          backgroundColor: AppStatusColors.rust,
         ),
       );
     } finally {
@@ -123,7 +123,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     Text(
                       'Start managing your client follow-ups in one place.',
                       style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.inkSoft),
+                          ?.copyWith(color: context.palette.textSecondary),
                     ),
                     const SizedBox(height: 32),
                     TextFormField(

@@ -88,7 +88,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                 padding: const EdgeInsets.all(40),
                 child: Center(
                   child: Text('Nothing here yet.',
-                      style: TextStyle(color: AppColors.inkSoft)),
+                      style: TextStyle(color: context.palette.textSecondary)),
                 ),
               ),
             ],
@@ -109,9 +109,9 @@ class _RequestListScreenState extends State<RequestListScreen> {
 
               return Container(
                 decoration: BoxDecoration(
-                  color: AppColors.paperRaised,
+                  color: context.palette.surface1,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.line),
+                  border: Border.all(color: context.palette.border),
                 ),
                 child: ListTile(
                   title: Text(client?['name'] as String? ?? 'Unknown client',
@@ -124,13 +124,13 @@ class _RequestListScreenState extends State<RequestListScreen> {
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.forStatus(status).withValues(alpha: 0.15),
+                      color: AppStatusColors.forStatus(status).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       status[0].toUpperCase() + status.substring(1),
                       style: TextStyle(
-                        color: AppColors.forStatus(status),
+                        color: AppStatusColors.forStatus(status),
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),

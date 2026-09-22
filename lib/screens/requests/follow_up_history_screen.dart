@@ -95,7 +95,7 @@ class FollowUpHistoryScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   child: Text(
                     'No activity recorded yet.',
-                    style: TextStyle(color: AppColors.inkSoft),
+                    style: TextStyle(color: context.palette.textSecondary),
                   ),
                 ),
               );
@@ -115,14 +115,14 @@ class FollowUpHistoryScreen extends StatelessWidget {
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.paperRaised,
+                    color: context.palette.surface1,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.line),
+                    border: Border.all(color: context.palette.border),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(_actionIcon(action), color: AppColors.sageDeep, size: 22),
+                      Icon(_actionIcon(action), color: context.palette.primary, size: 22),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -138,7 +138,7 @@ class FollowUpHistoryScreen extends StatelessWidget {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.sageLight,
+                                      color: context.palette.surface2,
                                       borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: Text(channel,
@@ -150,7 +150,7 @@ class FollowUpHistoryScreen extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               createdAt == null ? '' : dateFormat.format(createdAt),
-                              style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
+                              style: TextStyle(color: context.palette.textSecondary, fontSize: 13),
                             ),
                             if (notes != null && notes.trim().isNotEmpty) ...[
                               const SizedBox(height: 6),

@@ -99,7 +99,7 @@ class _Step4ReminderScheduleState extends State<Step4ReminderSchedule> {
           const SizedBox(height: 6),
           Text(
             'These are reminders for you — the business. We never message the client automatically.',
-            style: TextStyle(color: AppColors.inkSoft),
+            style: TextStyle(color: context.palette.textSecondary),
           ),
           const SizedBox(height: 20),
           ..._presets.map((preset) => _PresetTile(
@@ -133,16 +133,16 @@ class _PresetTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        tileColor: selected ? AppColors.sageLight : AppColors.paperRaised,
+        tileColor: selected ? context.palette.surface2 : context.palette.surface1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
-          side: const BorderSide(color: AppColors.line),
+          side: BorderSide(color: context.palette.border),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: days != null
             ? Text('Follow-up reminders on day${days!.length > 1 ? 's' : ''} ${days!.join(', ')}')
             : const Text('Set your own days'),
-        trailing: selected ? const Icon(Icons.check_circle, color: AppColors.forest) : null,
+        trailing: selected ? const Icon(Icons.check_circle, color: AppStatusColors.forest) : null,
         onTap: onTap,
       ),
     );

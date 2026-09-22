@@ -61,7 +61,7 @@ class _ClientListScreenState extends State<ClientListScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not archive this client.'),
-          backgroundColor: AppColors.rust,
+          backgroundColor: AppStatusColors.rust,
         ),
       );
     }
@@ -75,7 +75,7 @@ class _ClientListScreenState extends State<ClientListScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not unarchive this client.'),
-          backgroundColor: AppColors.rust,
+          backgroundColor: AppStatusColors.rust,
         ),
       );
     }
@@ -92,7 +92,7 @@ class _ClientListScreenState extends State<ClientListScreen>
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.rust)),
+            child: const Text('Delete', style: TextStyle(color: AppStatusColors.rust)),
           ),
         ],
       ),
@@ -107,7 +107,7 @@ class _ClientListScreenState extends State<ClientListScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppColors.rust,
+          backgroundColor: AppStatusColors.rust,
         ),
       );
     }
@@ -182,7 +182,7 @@ class _ClientListScreenState extends State<ClientListScreen>
                         ),
                         IconButton(
                           tooltip: 'Delete permanently',
-                          icon: const Icon(Icons.delete_outline, color: AppColors.rust),
+                          icon: const Icon(Icons.delete_outline, color: AppStatusColors.rust),
                           onPressed: () => _delete(c),
                         ),
                       ],
@@ -223,7 +223,7 @@ class _ClientListTab extends StatelessWidget {
         }
         final clients = filter(snapshot.data!);
         if (clients.isEmpty) {
-          return Center(child: Text(emptyText, style: TextStyle(color: AppColors.inkSoft)));
+          return Center(child: Text(emptyText, style: TextStyle(color: context.palette.textSecondary)));
         }
         return ListView.builder(
           itemCount: clients.length,

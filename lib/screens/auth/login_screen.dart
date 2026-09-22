@@ -49,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Login successful.'),
-          backgroundColor: AppColors.forest,
+          backgroundColor: AppStatusColors.forest,
         ),
       );
     } on AuthException catch (error) {
@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_authErrorMessage(error.message)),
-          backgroundColor: AppColors.rust,
+          backgroundColor: AppStatusColors.rust,
         ),
       );
     } catch (_) {
@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Something went wrong. Please try again.'),
-          backgroundColor: AppColors.rust,
+          backgroundColor: AppStatusColors.rust,
         ),
       );
     } finally {
@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Check your email for a password reset link.'),
-          backgroundColor: AppColors.forest,
+          backgroundColor: AppStatusColors.forest,
         ),
       );
     } catch (_) {
@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not send reset email. Please try again.'),
-          backgroundColor: AppColors.rust,
+          backgroundColor: AppStatusColors.rust,
         ),
       );
     }
@@ -156,12 +156,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: AppColors.sageDeep,
+                        color: context.palette.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.handshake_outlined,
-                        color: AppColors.paperRaised,
+                        color: context.palette.surface1,
                         size: 34,
                       ),
                     ),
@@ -175,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       'Sign in to manage your client follow-ups.',
                       style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.inkSoft),
+                          ?.copyWith(color: context.palette.textSecondary),
                     ),
                     const SizedBox(height: 32),
                     TextFormField(

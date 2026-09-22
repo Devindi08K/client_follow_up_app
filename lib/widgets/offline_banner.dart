@@ -53,7 +53,7 @@ class _OfflineBannerState extends State<OfflineBanner> with WidgetsBindingObserv
           child: _online
               ? const SizedBox(width: double.infinity)
               : Material(
-            color: AppColors.rust,
+            color: AppStatusColors.rust,
             child: SafeArea(
               bottom: false,
               child: Padding(

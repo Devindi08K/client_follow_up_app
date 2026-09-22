@@ -39,11 +39,11 @@ class Step5ReviewSend extends StatelessWidget {
                   .titleLarge
                   ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
-          Text('Client', style: TextStyle(color: AppColors.inkSoft)),
+          Text('Client', style: TextStyle(color: context.palette.textSecondary)),
           Text(client.name, style: const TextStyle(fontWeight: FontWeight.w600)),
           Text(client.email),
           const SizedBox(height: 16),
-          Text('Request', style: TextStyle(color: AppColors.inkSoft)),
+          Text('Request', style: TextStyle(color: context.palette.textSecondary)),
           Text(title.trim().isEmpty ? 'Request' : title,
               style: const TextStyle(fontWeight: FontWeight.w600)),
           if (description.trim().isNotEmpty) Text(description),
@@ -53,7 +53,7 @@ class Step5ReviewSend extends StatelessWidget {
           ],
           const SizedBox(height: 20),
           Text('Items requested (${items.length})',
-              style: TextStyle(color: AppColors.inkSoft)),
+              style: TextStyle(color: context.palette.textSecondary)),
           const SizedBox(height: 8),
           Expanded(
             child: ListView.separated(
@@ -62,10 +62,10 @@ class Step5ReviewSend extends StatelessWidget {
               itemBuilder: (context, index) {
                 final item = items[index];
                 return ListTile(
-                  tileColor: AppColors.paperRaised,
+                  tileColor: context.palette.surface1,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
-                    side: const BorderSide(color: AppColors.line),
+                    side: BorderSide(color: context.palette.border),
                   ),
                   title: Text(item.name),
                   subtitle:
@@ -78,7 +78,7 @@ class Step5ReviewSend extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.sageLight,
+              color: context.palette.surface2,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(

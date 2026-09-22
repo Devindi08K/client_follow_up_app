@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/business_service.dart';
 import '../../services/request_service.dart';
+import '../../services/theme_service.dart';
 import '../../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -68,13 +69,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.rust),
+      SnackBar(content: Text(message), backgroundColor: AppStatusColors.rust),
     );
   }
 
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.forest),
+      SnackBar(content: Text(message), backgroundColor: AppStatusColors.forest),
     );
   }
 
@@ -204,12 +205,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Save profile'),
             ),
             const SizedBox(height: 32),
+            Text('Appearance',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
+                ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto_outlined)),
+                ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
+              ],
+              selected: {ThemeService.instance.mode},
+              onSelectionChanged: (selected) => ThemeService.instance.setMode(selected.first),
+            ),
+            const SizedBox(height: 32),
             Text('Default reminder schedule',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Text(
               'New requests start with this schedule. You can still override it per request.',
-              style: TextStyle(color: AppColors.inkSoft),
+              style: TextStyle(color: context.palette.textSecondary),
             ),
             const SizedBox(height: 14),
             ..._presets.map((preset) => _ScheduleTile(
@@ -229,13 +243,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.paperRaised,
+                color: context.palette.surface1,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.line),
+                border: Border.all(color: context.palette.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.workspace_premium_outlined, color: AppColors.sageDeep),
+                  Icon(Icons.workspace_premium_outlined, color: context.palette.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text('Current plan: ${_plan[0].toUpperCase()}${_plan.substring(1)}'),
@@ -272,13 +286,13 @@ class _ScheduleTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        tileColor: selected ? AppColors.sageLight : AppColors.paperRaised,
+        tileColor: selected ? context.palette.surface2 : context.palette.surface1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
-          side: const BorderSide(color: AppColors.line),
+          side: BorderSide(color: context.palette.border),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        trailing: selected ? const Icon(Icons.check_circle, color: AppColors.forest) : null,
+        trailing: selected ? const Icon(Icons.check_circle, color: AppStatusColors.forest) : null,
         onTap: onTap,
       ),
     );

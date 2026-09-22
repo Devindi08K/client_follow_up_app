@@ -113,7 +113,7 @@ class _Step2RequestDetailsState extends State<Step2RequestDetails> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.sageLight,
+              color: context.palette.surface2,
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Text(

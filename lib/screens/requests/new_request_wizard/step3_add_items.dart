@@ -42,19 +42,19 @@ class _Step3AddItemsState extends State<Step3AddItems> {
             child: widget.items.isEmpty
                 ? Center(
                 child: Text('Add at least one item below.',
-                    style: TextStyle(color: AppColors.inkSoft)))
+                    style: TextStyle(color: context.palette.textSecondary)))
                 : ListView.separated(
               itemCount: widget.items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final item = widget.items[index];
 
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.paperRaised,
+                    color: context.palette.surface1,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.line),
+                    border: Border.all(color: context.palette.border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -74,7 +74,7 @@ class _Step3AddItemsState extends State<Step3AddItems> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline,
-                                color: AppColors.rust),
+                                color: AppStatusColors.rust),
                             onPressed: () => _removeItem(index),
                           ),
                         ],
