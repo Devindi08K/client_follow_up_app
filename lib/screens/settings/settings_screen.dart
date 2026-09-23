@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-
+import 'package:share_plus/share_plus.dart';
 import '../../services/auth_service.dart';
 import '../../services/business_service.dart';
 import '../../services/request_service.dart';
 import '../../services/theme_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/phone_input_field.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../../services/account_service.dart';
+import 'privacy_policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,14 +19,49 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _businessService = BusinessService();
+  final _accountService = AccountService();
 
   bool _loading = true;
   bool _busy = false;
+  String _appVersion = '';
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _messageTemplateController = TextEditingController();
+  final _subjectTemplateController = TextEditingController();
   String _email = '';
   String _plan = 'free';
+  String _country = 'Sri Lanka';
+  String _timezone = 'Asia/Colombo';
+  String _language = 'en';
+
+  static const List<String> _countries = [
+    'Sri Lanka',
+    'India',
+    'United States',
+    'United Kingdom',
+    'Australia',
+    'Canada',
+    'Singapore',
+    'United Arab Emirates',
+    'Other',
+  ];
+
+  static const List<String> _timezones = [
+    'Asia/Colombo',
+    'Asia/Kolkata',
+    'Asia/Dubai',
+    'Asia/Singapore',
+    'Europe/London',
+    'America/New_York',
+    'America/Los_Angeles',
+    'Australia/Sydney',
+    'UTC',
+  ];
+
+  static const Map<String, String> _languages = {
+    'en': 'English',
+  };
 
   static const List<List<int>> _presets = [
     [1, 3, 7],
@@ -41,12 +80,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _messageTemplateController.dispose();
+    _subjectTemplateController.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      _appVersion = '${packageInfo.version} (${packageInfo.buildNumber})';
       final profile = await _businessService.getBusinessProfile();
       if (!mounted) return;
       final rawCadence = profile?['default_reminder_cadence'] as List?;
@@ -55,6 +98,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _phoneController.text = profile?['phone'] as String? ?? '';
         _email = profile?['email'] as String? ?? '';
         _plan = profile?['plan'] as String? ?? 'free';
+        _country = profile?['country'] as String? ?? 'Sri Lanka';
+        _timezone = profile?['timezone'] as String? ?? 'Asia/Colombo';
+        _language = profile?['language'] as String? ?? 'en';
+        _messageTemplateController.text = profile?['message_template'] as String? ?? '';
+        _subjectTemplateController.text = profile?['subject_template'] as String? ?? '';
         _cadence = (rawCadence != null && rawCadence.isNotEmpty)
             ? (rawCadence.map((e) => e as int).toList()..sort())
             : List<int>.from(RequestService.defaultCadence);
@@ -93,6 +141,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showSuccess('Business profile updated.');
     } catch (_) {
       _showError('Could not save your profile.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+  Future<void> _saveTemplates() async {
+    setState(() => _busy = true);
+    try {
+      await _businessService.updateMessageTemplates(
+        bodyTemplate: _messageTemplateController.text,
+        subjectTemplate: _subjectTemplateController.text,
+      );
+      _showSuccess('Message templates updated.');
+    } catch (_) {
+      _showError('Could not save message templates.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _saveLocale() async {
+    setState(() => _busy = true);
+    try {
+      await _businessService.updateBusinessLocale(
+        country: _country,
+        timezone: _timezone,
+        language: _language,
+      );
+      _showSuccess('Region settings updated.');
+    } catch (_) {
+      _showError('Could not save region settings.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -165,6 +243,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _signOut() async {
     await AuthService().signOut();
   }
+  Future<void> _exportData() async {
+    setState(() => _busy = true);
+    try {
+      final text = await _accountService.exportDataAsText();
+      await SharePlus.instance.share(ShareParams(text: text));
+    } catch (_) {
+      _showError('Could not export your data. Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _requestDeletion() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text(
+            'This submits a request to permanently delete your business account and '
+                'all associated clients and requests. We\'ll process this within a few '
+                'business days and email you to confirm. This can\'t be undone once processed.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Request deletion', style: TextStyle(color: AppStatusColors.rust)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    try {
+      await _accountService.requestAccountDeletion();
+      if (!mounted) return;
+      _showSuccess('Deletion request submitted. We\'ll email you once it\'s processed.');
+    } catch (_) {
+      _showError('Could not submit your request. Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -194,15 +316,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: const InputDecoration(labelText: 'Email (sign-in address)'),
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Business phone (optional)'),
+            PhoneInputField(
+              initialValue: _phoneController.text,
+              onChanged: (value) => _phoneController.text = value,
+              labelText: 'Business phone (optional)',
             ),
             const SizedBox(height: 14),
             ElevatedButton(
               onPressed: _busy ? null : _saveProfile,
               child: const Text('Save profile'),
+            ),
+            const SizedBox(height: 32),
+            Text('Region & language',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _country,
+              decoration: const InputDecoration(labelText: 'Country'),
+              items: _countries
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: _busy ? null : (v) => setState(() => _country = v ?? _country),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _timezone,
+              decoration: const InputDecoration(labelText: 'Timezone'),
+              items: _timezones
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: _busy ? null : (v) => setState(() => _timezone = v ?? _timezone),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _language,
+              decoration: const InputDecoration(labelText: 'Language'),
+              items: _languages.entries
+                  .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                  .toList(),
+              onChanged: _busy ? null : (v) => setState(() => _language = v ?? _language),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: _busy ? null : _saveLocale,
+              child: const Text('Save region settings'),
             ),
             const SizedBox(height: 32),
             Text('Appearance',
@@ -237,6 +394,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _busy ? null : _editCustomCadence,
             ),
             const SizedBox(height: 32),
+            Text('Message templates',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text(
+              'Leave blank to use the default wording. Placeholders: {client_name}, {request_name}, {missing_items}, {due_date}, {business_name}.',
+              style: TextStyle(color: context.palette.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _subjectTemplateController,
+              decoration: const InputDecoration(labelText: 'Subject template (optional)'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _messageTemplateController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Message template (optional)',
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: _busy ? null : _saveTemplates,
+              child: const Text('Save templates'),
+            ),
+            const SizedBox(height: 32),
             Text('Subscription',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
@@ -262,10 +447,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 32),
+            Text('Privacy & data',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+              ),
+              icon: const Icon(Icons.privacy_tip_outlined),
+              label: const Text('Privacy policy'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _exportData,
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Export my data'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _requestDeletion,
+              icon: const Icon(Icons.delete_forever_outlined, color: AppStatusColors.rust),
+              label: const Text('Delete account', style: TextStyle(color: AppStatusColors.rust)),
+            ),
+            const SizedBox(height: 32),
             OutlinedButton.icon(
               onPressed: _signOut,
               icon: const Icon(Icons.logout_outlined),
               label: const Text('Sign out'),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                _appVersion.isEmpty ? '' : 'Version $_appVersion',
+                style: TextStyle(color: context.palette.textSecondary, fontSize: 12),
+              ),
             ),
           ],
         ),

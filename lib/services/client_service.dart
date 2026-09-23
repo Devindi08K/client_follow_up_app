@@ -33,6 +33,7 @@ class ClientService {
     required String name,
     String? email,
     String? phone,
+    String preferredContact = 'none',
   }) async {
     final user = _client.auth.currentUser;
 
@@ -58,6 +59,7 @@ class ClientService {
       'name': trimmedName,
       'email': trimmedEmail.isEmpty ? null : trimmedEmail,
       'phone': trimmedPhone.isEmpty ? null : trimmedPhone,
+      'preferred_contact': preferredContact,
     })
         .select()
         .single();
@@ -74,6 +76,7 @@ class ClientService {
     required String name,
     String? email,
     String? phone,
+    String preferredContact = 'none',
   }) async {
     final trimmedName = name.trim();
     final trimmedEmail = email?.trim() ?? '';
@@ -92,6 +95,7 @@ class ClientService {
       'name': trimmedName,
       'email': trimmedEmail.isEmpty ? null : trimmedEmail,
       'phone': trimmedPhone.isEmpty ? null : trimmedPhone,
+      'preferred_contact': preferredContact,
       'updated_at': DateTime.now().toIso8601String(),
     })
         .eq('id', id)

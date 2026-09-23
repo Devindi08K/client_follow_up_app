@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../services/business_service.dart';
 
 import '../../services/message_service.dart';
 import '../../services/request_service.dart';
@@ -46,16 +48,41 @@ class _MessageScreenState extends State<MessageScreen> {
   @override
   void initState() {
     super.initState();
+    _subjectController = TextEditingController();
+    _bodyController = TextEditingController();
+    _loadMessage();
+    _requestService.logReminderGenerated(widget.requestId);
+  }
+
+  Future<void> _loadMessage() async {
+    String businessName = '';
+    String? bodyTemplate;
+    String? subjectTemplate;
+    try {
+      final profile = await BusinessService().getBusinessProfile();
+      businessName = profile?['name'] as String? ?? '';
+      bodyTemplate = profile?['message_template'] as String?;
+      subjectTemplate = profile?['subject_template'] as String?;
+    } catch (_) {
+      // Fall back to the default template if the profile can't be loaded.
+    }
+
     final generated = _messageService.buildReminder(
       clientName: widget.clientName,
       requestTitle: widget.requestTitle,
       missingItemNames: widget.missingItemNames,
       dueDate: widget.dueDate,
       alreadyContacted: widget.alreadyContacted,
+      businessName: businessName,
+      customBodyTemplate: bodyTemplate,
+      customSubjectTemplate: subjectTemplate,
     );
-    _subjectController = TextEditingController(text: generated.subject);
-    _bodyController = TextEditingController(text: generated.body);
-    _requestService.logReminderGenerated(widget.requestId);
+
+    if (!mounted) return;
+    setState(() {
+      _subjectController.text = generated.subject;
+      _bodyController.text = generated.body;
+    });
   }
 
   @override
@@ -82,6 +109,12 @@ class _MessageScreenState extends State<MessageScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Message copied.')),
+    );
+  }
+
+  Future<void> _share() async {
+    await SharePlus.instance.share(
+      ShareParams(text: '${_subjectController.text}\n\n${_bodyController.text}'),
     );
   }
 
@@ -175,6 +208,26 @@ class _MessageScreenState extends State<MessageScreen> {
                 maxLines: 14,
               ),
               const SizedBox(height: 24),
+              if (widget.clientEmail.isEmpty && widget.clientPhone.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: context.palette.surface2,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: context.palette.textSecondary),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'No email or phone on file. Copy the message, share it another way, or mark them contacted manually.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               SizedBox(
                 height: 50,
                 child: OutlinedButton.icon(
@@ -186,21 +239,34 @@ class _MessageScreenState extends State<MessageScreen> {
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _busy ? null : _openEmail,
-                  icon: const Icon(Icons.email_outlined),
-                  label: const Text('Open email'),
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _share,
+                  icon: const Icon(Icons.share_outlined),
+                  label: const Text('Share via...'),
                 ),
               ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _busy ? null : _openWhatsApp,
-                  icon: const Icon(Icons.chat_outlined),
-                  label: const Text('Open WhatsApp'),
+              if (widget.clientEmail.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _busy ? null : _openEmail,
+                    icon: const Icon(Icons.email_outlined),
+                    label: const Text('Open email'),
+                  ),
                 ),
-              ),
+              ],
+              if (widget.clientPhone.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _busy ? null : _openWhatsApp,
+                    icon: const Icon(Icons.chat_outlined),
+                    label: const Text('Open WhatsApp'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,

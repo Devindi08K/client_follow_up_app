@@ -509,7 +509,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final nextFollowUp = _parseDate(_request!['next_follow_up_at']);
     final isActive = status == 'pending' || status == 'overdue';
     final canEditItems = status != 'cancelled';
-    final dateFormat = DateFormat('MMM d, yyyy');
+    final dateFormat = DateFormat.yMMMd();
 
     return Scaffold(
       appBar: AppBar(
@@ -650,14 +650,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _busy ? null : _callClient,
-                                  icon: const Icon(Icons.call_outlined),
-                                  label: const Text('Call'),
+                              if ((_clientData['phone'] as String? ?? '').isNotEmpty) ...[
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _busy ? null : _callClient,
+                                    icon: const Icon(Icons.call_outlined),
+                                    label: const Text('Call'),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
+                                const SizedBox(width: 10),
+                              ],
                               Expanded(
                                 child: OutlinedButton.icon(
                                   onPressed: _busy ? null : _markContacted,
@@ -885,14 +887,12 @@ class _ItemTile extends StatelessWidget {
               ),
             ),
             if (onDelete != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               IconButton(
                 tooltip: 'Remove item',
                 icon: const Icon(Icons.delete_outline, size: 20, color: AppStatusColors.rust),
                 onPressed: busy ? null : onDelete,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               ),
             ],
           ],

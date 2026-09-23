@@ -7,6 +7,7 @@ import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
 import '../requests/new_request_wizard/new_request_wizard_screen.dart';
 import '../requests/request_detail_screen.dart';
+import '../../widgets/phone_input_field.dart';
 
 /// B4 — Client Detail screen.
 class ClientDetailScreen extends StatefulWidget {
@@ -74,78 +75,98 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
     );
   }
 
+  static const Map<String, String> _contactOptions = {
+    'none': 'No preference',
+    'email': 'Email',
+    'whatsapp': 'WhatsApp',
+    'phone': 'Phone',
+  };
+
   Future<void> _editClient() async {
     final nameController = TextEditingController(text: _client.name);
     final emailController = TextEditingController(text: _client.email);
     final phoneController = TextEditingController(text: _client.phone);
     final formKey = GlobalKey<FormState>();
+    String preferredContact = _client.preferredContact;
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Edit client',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Client name'),
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Edit client',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Client name'),
+                      validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(labelText: 'Client email (optional)'),
+                      validator: (v) {
+                        final email = v?.trim() ?? '';
+                        if (email.isNotEmpty && !email.contains('@')) return 'Enter a valid email';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    PhoneInputField(
+                      initialValue: phoneController.text,
+                      onChanged: (value) => phoneController.text = value,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: preferredContact,
+                      decoration: const InputDecoration(labelText: 'Preferred contact method'),
+                      items: _contactOptions.entries
+                          .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                          .toList(),
+                      onChanged: (v) =>
+                          setModalState(() => preferredContact = v ?? 'none'),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () {
+                        if (!formKey.currentState!.validate()) return;
+                        if (emailController.text.trim().isEmpty &&
+                            phoneController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Add at least an email or a phone number.')),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context, true);
+                      },
+                      child: const Text('Save changes'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Client email (optional)'),
-                  validator: (v) {
-                    final email = v?.trim() ?? '';
-                    if (email.isNotEmpty && !email.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration:
-                  const InputDecoration(labelText: 'Client phone (optional)'),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    if (!formKey.currentState!.validate()) return;
-                    if (emailController.text.trim().isEmpty &&
-                        phoneController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Add at least an email or a phone number.')),
-                      );
-                      return;
-                    }
-                    Navigator.pop(context, true);
-                  },
-                  child: const Text('Save changes'),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -175,6 +196,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
         name: nameController.text,
         email: emailController.text,
         phone: phoneController.text,
+        preferredContact: preferredContact,
       );
       if (!mounted) return;
       setState(() => _client = updated);
@@ -258,6 +280,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
           name: _client.name,
           email: _client.email,
           phone: _client.phone,
+          preferredContact: _client.preferredContact,
           archivedAt: archiving ? DateTime.now() : null,
         );
       });
@@ -277,6 +300,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
                     name: _client.name,
                     email: _client.email,
                     phone: _client.phone,
+                    preferredContact: _client.preferredContact,
                     archivedAt: null,
                   );
                 });
@@ -509,7 +533,7 @@ class _RequestList extends StatelessWidget {
       );
     }
 
-    final dateFormat = DateFormat('MMM d, yyyy');
+    final dateFormat = DateFormat.yMMMd();
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),

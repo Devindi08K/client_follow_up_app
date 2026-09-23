@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/request_item_draft.dart';
+import 'package:intl/intl.dart';
+import 'retry_helper.dart';
 
 class RequestService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -105,7 +107,7 @@ class RequestService {
     final now = DateTime.now();
     final nextFollowUpAt = now.add(Duration(days: cadence.first));
 
-    final requestRow = await _client
+    final requestRow = await withRetry(() => _client
         .from('requests')
         .insert({
       'business_id': uid,
@@ -120,7 +122,7 @@ class RequestService {
       'next_follow_up_at': nextFollowUpAt.toIso8601String(),
     })
         .select()
-        .single();
+        .single());
 
     final requestId = requestRow['id'] as String;
 
@@ -148,10 +150,10 @@ class RequestService {
     required String itemId,
     required bool received,
   }) async {
-    await _client.from('request_items').update({
+    await withRetry(() => _client.from('request_items').update({
       'status': received ? 'received' : 'missing',
       'received_at': received ? DateTime.now().toIso8601String() : null,
-    }).eq('id', itemId);
+    }).eq('id', itemId));
 
     await _logFollowUp(
       requestId: requestId,
@@ -279,11 +281,11 @@ class RequestService {
     final uid = _client.auth.currentUser!.id;
     final now = DateTime.now();
 
-    final request = await _client
+    final request = await withRetry(() => _client
         .from('requests')
         .select('created_at, reminder_cadence, status')
         .eq('id', requestId)
-        .single();
+        .single());
 
     final createdAt = DateTime.parse(request['created_at'] as String);
     final cadence =
@@ -292,18 +294,18 @@ class RequestService {
     final currentStatus = request['status'] as String?;
     final nextFollowUp = _computeNextFollowUp(cadence, createdAt, now);
 
-    await _client.from('requests').update({
+    await withRetry(() => _client.from('requests').update({
       'last_contacted_at': now.toIso8601String(),
       'next_follow_up_at': nextFollowUp?.toIso8601String(),
       if (nextFollowUp == null && currentStatus != 'complete') 'status': 'overdue',
-    }).eq('id', requestId);
+    }).eq('id', requestId));
 
-    await _client.from('follow_ups').insert({
+    await withRetry(() => _client.from('follow_ups').insert({
       'business_id': uid,
       'request_id': requestId,
       'channel': channel,
       'action': 'contacted',
-    });
+    }));
   }
 
   DateTime? _computeNextFollowUp(List<int> cadence, DateTime createdAt, DateTime now) {
@@ -455,10 +457,6 @@ class RequestService {
   }
 
   String _formatDate(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    return DateFormat.yMMMd().format(date);
   }
 }

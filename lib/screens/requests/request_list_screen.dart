@@ -71,7 +71,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d');
+    final dateFormat = DateFormat.MMMd();
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),

@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 
 class GeneratedMessage {
   final String subject;
@@ -20,12 +21,35 @@ class MessageService {
     required List<String> missingItemNames,
     DateTime? dueDate,
     bool alreadyContacted = false,
+    String businessName = '',
+    String? customBodyTemplate,
+    String? customSubjectTemplate,
   }) {
     final firstName =
     clientName.trim().isEmpty ? 'there' : clientName.trim().split(' ').first;
     final itemsList = _formatList(missingItemNames);
 
+    if (customBodyTemplate != null && customBodyTemplate.trim().isNotEmpty) {
+      final placeholders = {
+        'client_name': firstName,
+        'request_name': requestTitle,
+        'missing_items': itemsList,
+        'due_date': dueDate != null ? _formatDate(dueDate) : '',
+        'business_name': businessName,
+      };
+
+      final body = _applyTemplate(customBodyTemplate, placeholders);
+      final subject = (customSubjectTemplate != null && customSubjectTemplate.trim().isNotEmpty)
+          ? _applyTemplate(customSubjectTemplate, placeholders)
+          : (missingItemNames.length == 1
+          ? 'Reminder: ${missingItemNames.first}'
+          : 'Reminder: a few outstanding items for "$requestTitle"');
+
+      return GeneratedMessage(subject: subject, body: body);
+    }
+
     final buffer = StringBuffer();
+
     buffer.write('Hi $firstName,\n\n');
 
     if (alreadyContacted) {
@@ -57,12 +81,16 @@ class MessageService {
     return '$head, and ${items.last}';
   }
 
+  String _applyTemplate(String template, Map<String, String> values) {
+    var result = template;
+    values.forEach((key, value) {
+      result = result.replaceAll('{$key}', value);
+    });
+    return result;
+  }
+
   String _formatDate(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}';
+    return DateFormat.MMMd().format(date);
   }
 
   Future<void> copyToClipboard(String text) {

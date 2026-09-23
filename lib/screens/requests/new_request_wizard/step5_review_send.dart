@@ -26,7 +26,7 @@ class Step5ReviewSend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy');
+    final dateFormat = DateFormat.yMMMd();
 
     return Padding(
       padding: const EdgeInsets.all(20),

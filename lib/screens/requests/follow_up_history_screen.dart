@@ -77,7 +77,7 @@ class FollowUpHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy · h:mm a');
+    final dateFormat = DateFormat.yMMMd().add_jm();
 
     return Scaffold(
       appBar: AppBar(title: Text('History · $requestTitle')),

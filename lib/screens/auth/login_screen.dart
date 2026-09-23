@@ -152,17 +152,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 28),
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: context.palette.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.handshake_outlined,
-                        color: context.palette.surface1,
-                        size: 34,
+                    ExcludeSemantics(
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: context.palette.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.handshake_outlined,
+                          color: context.palette.surface1,
+                          size: 34,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -241,13 +243,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const Text('Sign in'),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _isLoading ? null : _forgotPassword,
-                        child: const Text('Forgot password?'),
-                      ),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton(
+                      onPressed: _isLoading ? null : _forgotPassword,
+                      child: const Text('Forgot password?'),
                     ),
+                  ),
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

@@ -66,6 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _businessName = 'Your Business';
   bool _loadingProfile = true;
   bool _loadingStats = true;
+  bool _statsErrored = false;
   _DashboardStats _stats = _DashboardStats.empty();
 
   @override
@@ -90,7 +91,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadStats() async {
-    setState(() => _loadingStats = true);
+    setState(() {
+      _loadingStats = true;
+      _statsErrored = false;
+    });
     try {
       final results = await Future.wait([
         _requestService.fetchRequestsOverview(),
@@ -162,7 +166,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loadingStats = false);
+      setState(() {
+        _loadingStats = false;
+        _statsErrored = true;
+      });
     }
   }
 
@@ -351,6 +358,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_statsErrored)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: context.palette.surface1,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: context.palette.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.cloud_off_outlined, size: 32, color: context.palette.textSecondary),
+                        const SizedBox(height: 12),
+                        Text("Couldn't load your follow-ups",
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        Text('Check your connection and try again.',
+                            style: TextStyle(color: context.palette.textSecondary)),
+                        const SizedBox(height: 14),
+                        OutlinedButton.icon(
+                          onPressed: _loadStats,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   )
                 else if (_stats.followUpsDue.isEmpty)
                   Container(

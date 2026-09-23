@@ -80,4 +80,34 @@ class BusinessService {
     }).eq('id', user.id);
   }
 
+  Future<void> updateMessageTemplates({
+    String? bodyTemplate,
+    String? subjectTemplate,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found.');
+
+    await _client.from('businesses').update({
+      'message_template':
+      (bodyTemplate == null || bodyTemplate.trim().isEmpty) ? null : bodyTemplate.trim(),
+      'subject_template':
+      (subjectTemplate == null || subjectTemplate.trim().isEmpty) ? null : subjectTemplate.trim(),
+    }).eq('id', user.id);
+  }
+
+  Future<void> updateBusinessLocale({
+    required String country,
+    required String timezone,
+    required String language,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found.');
+
+    await _client.from('businesses').update({
+      'country': country,
+      'timezone': timezone,
+      'language': language,
+    }).eq('id', user.id);
+  }
+
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../models/client.dart';
 import '../../../services/client_service.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/phone_input_field.dart';
 
 class Step1SelectClient extends StatefulWidget {
   final ClientModel? selectedClient;
@@ -22,6 +23,14 @@ class Step1SelectClient extends StatefulWidget {
 class _Step1SelectClientState extends State<Step1SelectClient> {
   final _clientService = ClientService();
   bool _showNewClientForm = false;
+  String _preferredContact = 'none';
+
+  static const Map<String, String> _contactOptions = {
+    'none': 'No preference',
+    'email': 'Email',
+    'whatsapp': 'WhatsApp',
+    'phone': 'Phone',
+  };
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -70,6 +79,7 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
         name: _nameController.text,
         email: _emailController.text,
         phone: _phoneController.text,
+        preferredContact: _preferredContact,
       );
       widget.onClientSelected(client);
 
@@ -79,6 +89,7 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
         _nameController.clear();
         _emailController.clear();
         _phoneController.clear();
+        _preferredContact = 'none';
       });
     } catch (e) {
       if (!mounted) return;
@@ -205,11 +216,18 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                        labelText: 'Client phone (optional)'),
+                  PhoneInputField(
+                    initialValue: _phoneController.text,
+                    onChanged: (value) => _phoneController.text = value,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _preferredContact,
+                    decoration: const InputDecoration(labelText: 'Preferred contact method'),
+                    items: _contactOptions.entries
+                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _preferredContact = v ?? 'none'),
                   ),
                   const SizedBox(height: 12),
                   Row(
