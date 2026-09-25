@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../requests/new_request_wizard/new_request_wizard_screen.dart';
 import '../requests/request_detail_screen.dart';
 import '../../widgets/phone_input_field.dart';
+import '../../../widgets/upgrade_prompt.dart';
 
 /// B4 — Client Detail screen.
 class ClientDetailScreen extends StatefulWidget {
@@ -202,7 +203,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
       setState(() => _client = updated);
       _showSuccess('Client updated.');
     } catch (e) {
-      _showError('Could not save changes: $e');
+      if (!mounted) return;
+      await showUpgradePromptIfLimitReached(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

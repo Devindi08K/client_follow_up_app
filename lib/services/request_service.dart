@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/request_item_draft.dart';
 import 'package:intl/intl.dart';
 import 'retry_helper.dart';
+import 'plan_limits.dart';
+import 'purchase_service.dart';
 
 class RequestService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -92,6 +94,16 @@ class RequestService {
         .toList();
   }
 
+  Future<int> _countActiveRequests() async {
+    final uid = _client.auth.currentUser!.id;
+    final rows = await _client
+        .from('requests')
+        .select('id')
+        .eq('business_id', uid)
+        .inFilter('status', ['pending', 'overdue']);
+    return rows.length;
+  }
+
   Future<String> createRequest({
     required String clientId,
     required List<RequestItemDraft> items,
@@ -101,6 +113,18 @@ class RequestService {
     List<int>? reminderCadence,
   }) async {
     final uid = _client.auth.currentUser!.id;
+
+    final isPro = await PurchaseService().isPro();
+    if (!isPro) {
+      final activeCount = await _countActiveRequests();
+      if (activeCount >= PlanLimits.freeMaxActiveRequests) {
+        throw FreeTierLimitException(
+          'Free plan is limited to ${PlanLimits.freeMaxActiveRequests} active requests. '
+              'Complete or cancel an existing request, or upgrade to Pro to add more.',
+          'requests',
+        );
+      }
+    }
     final cadence = (reminderCadence == null || reminderCadence.isEmpty)
         ? defaultCadence
         : (List<int>.from(reminderCadence)..sort());
@@ -240,6 +264,7 @@ class RequestService {
         'status': 'complete',
         'completed_at': DateTime.now().toIso8601String(),
       }).eq('id', requestId);
+      await _spawnNextOccurrenceIfRecurring(requestId);
     } else if (!allReceived && currentStatus == 'complete') {
       // An item was reopened, or a new missing item was added, after
       // completion — resume the workflow (Flow I) and schedule a fresh
@@ -454,6 +479,69 @@ class RequestService {
       action: 'cadence_updated',
       notes: 'New schedule: Day ${sorted.join(', ')}',
     );
+  }
+
+  Future<void> setRecurrence({required String requestId, String? recurrence}) async {
+    await _client.from('requests').update({'recurrence': recurrence}).eq('id', requestId);
+  }
+
+  DateTime _nextOccurrence(DateTime from, String recurrence) {
+    switch (recurrence) {
+      case 'monthly':
+        return DateTime(from.year, from.month + 1, from.day);
+      case 'quarterly':
+        return DateTime(from.year, from.month + 3, from.day);
+      case 'yearly':
+        return DateTime(from.year + 1, from.month, from.day);
+      default:
+        return from;
+    }
+  }
+
+  Future<void> _spawnNextOccurrenceIfRecurring(String requestId) async {
+    final uid = _client.auth.currentUser!.id;
+    final request = await _client
+        .from('requests')
+        .select('*, request_items(name, instructions)')
+        .eq('id', requestId)
+        .maybeSingle();
+    if (request == null) return;
+
+    final recurrence = request['recurrence'] as String?;
+    if (recurrence == null) return;
+
+    final dueDate = request['due_date'] != null ? DateTime.parse(request['due_date']) : DateTime.now();
+    final nextDue = _nextOccurrence(dueDate, recurrence);
+    final cadence = (request['reminder_cadence'] as List?)?.map((e) => e as int).toList() ?? defaultCadence;
+
+    final newRequest = await _client
+        .from('requests')
+        .insert({
+      'business_id': uid,
+      'client_id': request['client_id'],
+      'title': request['title'],
+      'description': request['description'],
+      'status': 'pending',
+      'due_date': nextDue.toIso8601String(),
+      'reminder_cadence': cadence,
+      'next_follow_up_at': DateTime.now().add(Duration(days: cadence.first)).toIso8601String(),
+      'recurrence': recurrence,
+      'recurrence_parent_id': requestId,
+    })
+        .select()
+        .single();
+
+    final items = (request['request_items'] as List?) ?? [];
+    if (items.isNotEmpty) {
+      await _client.from('request_items').insert(items
+          .map((i) => {
+        'request_id': newRequest['id'],
+        'name': (i as Map)['name'],
+        'instructions': i['instructions'],
+        'status': 'missing',
+      })
+          .toList());
+    }
   }
 
   String _formatDate(DateTime date) {

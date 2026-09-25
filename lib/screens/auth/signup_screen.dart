@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../services/business_service.dart';
+import 'check_email_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -43,6 +44,7 @@ class _SignupScreenState extends State<SignupScreen> {
       final response = await _authService.signUp(
         email: _emailController.text,
         password: _passwordController.text,
+        businessName: _businessNameController.text,
       );
 
       // Works immediately if email confirmation is off (session exists now).
@@ -61,14 +63,17 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (!mounted) return;
 
-      final message = response.session == null
-          ? 'Check your email to confirm your account, then sign in.'
-          : 'Account created successfully.';
+      if (response.session == null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => CheckEmailScreen(email: _emailController.text.trim())),
+        );
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppStatusColors.forest),
+        const SnackBar(content: Text('Account created successfully.'), backgroundColor: AppStatusColors.forest),
       );
-
       Navigator.pop(context);
     } on AuthException catch (error) {
       if (!mounted) return;

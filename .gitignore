@@ -48,3 +48,9 @@ app.*.map.json
 .widget_preview/
 
 functions/node_modules
+
+x86_64_debug.jar
+arm64_v8a_debug.jar
+
+x86_64_debug.jar
+arm64_v8a_debug.jar

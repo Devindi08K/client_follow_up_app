@@ -406,6 +406,48 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  Future<void> _editRecurrence() async {
+    final current = _request?['recurrence'] as String?;
+    final choice = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            title: const Text('Does not repeat'),
+            trailing: current == null ? const Icon(Icons.check) : null,
+            onTap: () => Navigator.pop(context, '__none__'),
+          ),
+          ListTile(
+            title: const Text('Monthly'),
+            trailing: current == 'monthly' ? const Icon(Icons.check) : null,
+            onTap: () => Navigator.pop(context, 'monthly'),
+          ),
+          ListTile(
+            title: const Text('Quarterly'),
+            trailing: current == 'quarterly' ? const Icon(Icons.check) : null,
+            onTap: () => Navigator.pop(context, 'quarterly'),
+          ),
+          ListTile(
+            title: const Text('Yearly'),
+            trailing: current == 'yearly' ? const Icon(Icons.check) : null,
+            onTap: () => Navigator.pop(context, 'yearly'),
+          ),
+        ]),
+      ),
+    );
+    if (choice == null) return;
+    setState(() => _busy = true);
+    try {
+      await _requestService.setRecurrence(
+        requestId: widget.requestId,
+        recurrence: choice == '__none__' ? null : choice,
+      );
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _cancelRequest() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -685,6 +727,19 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               onPressed: _busy ? null : _editCadence,
                               icon: const Icon(Icons.schedule_outlined),
                               label: const Text('Edit reminder schedule'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              onPressed: _busy ? null : _editRecurrence,
+                              icon: const Icon(Icons.repeat_outlined),
+                              label: Text(
+                                (_request?['recurrence'] as String?) == null
+                                    ? 'Repeat'
+                                    : 'Repeats ${_request!['recurrence']}',
+                              ),
                             ),
                           ),
                           const SizedBox(height: 10),

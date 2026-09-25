@@ -11,6 +11,9 @@ import 'step2_request_details.dart';
 import 'step3_add_items.dart';
 import 'step4_reminder_schedule.dart';
 import 'step5_review_send.dart';
+import '../../../models/request_template.dart';
+import '../../../services/template_service.dart';
+import '../../../widgets/upgrade_prompt.dart';
 
 class NewRequestWizardScreen extends StatefulWidget {
   final ClientModel? initialClient;
@@ -113,14 +116,79 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not create request: $e'),
-          duration: const Duration(seconds: 6)));
+      await showUpgradePromptIfLimitReached(context, e);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
   }
 
+  Future<void> _applyTemplate(RequestTemplate t) async {
+    setState(() {
+      _title = t.title;
+      _description = t.description;
+      _items
+        ..clear()
+        ..addAll(t.items.map((i) => RequestItemDraft(name: i.name, instructions: i.instructions)));
+      _cadence = List<int>.from(t.reminderCadence);
+    });
+  }
+  Future<void> _saveAsTemplate() async {
+    final nameController = TextEditingController(text: _title);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save as template'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Template name'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (saved != true || nameController.text.trim().isEmpty) return;
+
+    try {
+      await TemplateService().createTemplate(
+        name: nameController.text,
+        title: _title,
+        description: _description,
+        items: _items,
+        cadence: _cadence,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Template saved.')));
+    } catch (e) {
+      if (!mounted) return;
+      await showUpgradePromptIfLimitReached(context, e);
+    }
+  }
+
+  Future<void> _pickTemplate() async {
+    final templates = await TemplateService().streamTemplates().first;
+    if (!mounted) return;
+    if (templates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No templates yet. Save one from Settings > Templates.')),
+      );
+      return;
+    }
+    final picked = await showModalBottomSheet<RequestTemplate>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: templates
+              .map((t) => ListTile(title: Text(t.name), subtitle: Text(t.title), onTap: () => Navigator.pop(context, t)))
+              .toList(),
+        ),
+      ),
+    );
+    if (picked != null) _applyTemplate(picked);
+  }
   Future<bool?> _confirmDuplicateRequest(List<Map<String, dynamic>> duplicates) {
     final dateFormat = DateFormat('MMM d, yyyy');
 
@@ -174,7 +242,16 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('New request · ${_stepTitles[_currentStep]}')),
+      appBar: AppBar(
+        title: Text('New request · ${_stepTitles[_currentStep]}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bookmark_outline),
+            tooltip: 'Use template',
+            onPressed: _pickTemplate,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -212,6 +289,7 @@ class _NewRequestWizardScreenState extends State<NewRequestWizardScreen> {
                     dueDate: _dueDate,
                     items: _items,
                     cadence: _cadence,
+                    onSaveAsTemplate: _saveAsTemplate,
                   )
                 else
                   const SizedBox.shrink(),

@@ -13,6 +13,7 @@ class Step5ReviewSend extends StatelessWidget {
   final DateTime? dueDate;
   final List<RequestItemDraft> items;
   final List<int> cadence;
+  final VoidCallback onSaveAsTemplate;
 
   const Step5ReviewSend({
     super.key,
@@ -22,6 +23,7 @@ class Step5ReviewSend extends StatelessWidget {
     required this.dueDate,
     required this.items,
     required this.cadence,
+    required this.onSaveAsTemplate,
   });
 
   @override
@@ -85,6 +87,12 @@ class Step5ReviewSend extends StatelessWidget {
               'Reminders will be due on day${cadence.length > 1 ? 's' : ''} ${cadence.join(', ')} if items are still missing.',
               style: const TextStyle(fontSize: 13),
             ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onSaveAsTemplate,
+            icon: const Icon(Icons.bookmark_add_outlined),
+            label: const Text('Save as template'),
           ),
         ],
       ),

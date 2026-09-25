@@ -14,9 +14,12 @@ class BusinessService {
     final user = _client.auth.currentUser;
     if (user == null) throw Exception('No authenticated user found.');
 
-    final name = fallbackName.trim().isNotEmpty
+    final metadataName = user.userMetadata?['business_name'] as String?;
+    final name = (metadataName != null && metadataName.trim().isNotEmpty)
+        ? metadataName.trim()
+        : (fallbackName.trim().isNotEmpty
         ? fallbackName.trim()
-        : (user.email?.split('@').first ?? 'My Business');
+        : (user.email?.split('@').first ?? 'My Business'));
 
     final row = await _client
         .from('businesses')

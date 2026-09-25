@@ -6,6 +6,8 @@ import 'screens/auth/auth_gate.dart';
 import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/offline_banner.dart';
+import 'services/purchase_service.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +16,9 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
   );
+  await PurchaseService().configure();
   await ThemeService.instance.load();
+  await NotificationService.instance.init();
 
   runApp(const ClientFollowUpApp());
 }

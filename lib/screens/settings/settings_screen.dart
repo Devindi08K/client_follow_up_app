@@ -9,6 +9,9 @@ import '../../widgets/phone_input_field.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../services/account_service.dart';
 import 'privacy_policy_screen.dart';
+import 'templates_screen.dart';
+import 'package:file_picker/file_picker.dart';
+import 'subscription_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -440,11 +443,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Text('Current plan: ${_plan[0].toUpperCase()}${_plan.substring(1)}'),
                   ),
                   OutlinedButton(
-                    onPressed: null, // subscription wiring deferred — see master plan §30/§19
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                    ),
                     child: const Text('Manage'),
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 32),
+            Text('Templates',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TemplatesScreen()),
+              ),
+              icon: const Icon(Icons.bookmark_outline),
+              label: const Text('Manage templates'),
             ),
             const SizedBox(height: 32),
             Text('Privacy & data',
@@ -463,6 +482,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: _busy ? null : _exportData,
               icon: const Icon(Icons.download_outlined),
               label: const Text('Export my data'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () async {
+                setState(() => _busy = true);
+                try {
+                  final csv = await _accountService.exportClientsAsCsv();
+                  await SharePlus.instance.share(ShareParams(text: csv));
+                } finally {
+                  if (mounted) setState(() => _busy = false);
+                }
+              },
+              icon: const Icon(Icons.table_chart_outlined),
+              label: const Text('Export clients as CSV'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () async {
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['csv'],
+                  withData: true,
+                );
+                if (result == null || result.files.single.bytes == null) return;
+                setState(() => _busy = true);
+                try {
+                  final csv = String.fromCharCodes(result.files.single.bytes!);
+                  final count = await _accountService.importClientsFromCsv(csv);
+                  _showSuccess('Imported $count clients.');
+                } catch (e) {
+                  _showError('Import failed: $e');
+                } finally {
+                  if (mounted) setState(() => _busy = false);
+                }
+              },
+              icon: const Icon(Icons.upload_file_outlined),
+              label: const Text('Import clients from CSV'),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(

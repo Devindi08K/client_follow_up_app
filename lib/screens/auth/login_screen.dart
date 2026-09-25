@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import 'signup_screen.dart';
+import 'check_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,6 +55,29 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } on AuthException catch (error) {
       if (!mounted) return;
+
+      if (error.message.toLowerCase().contains('email not confirmed')) {
+        final resend = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Email not confirmed'),
+            content: const Text('Please confirm your email before signing in. Want us to resend the link?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Resend')),
+            ],
+          ),
+        );
+        if (resend == true) {
+          await _authService.resendConfirmation(email: _emailController.text.trim());
+          if (!mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => CheckEmailScreen(email: _emailController.text.trim())),
+          );
+        }
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

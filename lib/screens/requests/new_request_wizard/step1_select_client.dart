@@ -5,6 +5,7 @@ import '../../../models/client.dart';
 import '../../../services/client_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/phone_input_field.dart';
+import '../../../widgets/upgrade_prompt.dart';
 
 class Step1SelectClient extends StatefulWidget {
   final ClientModel? selectedClient;
@@ -93,8 +94,7 @@ class _Step1SelectClientState extends State<Step1SelectClient> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not create client: $e')));
+      await showUpgradePromptIfLimitReached(context, e);
     } finally {
       if (mounted) setState(() => _creating = false);
     }

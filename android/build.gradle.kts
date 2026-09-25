@@ -1,5 +1,7 @@
 allprojects {
     repositories {
+        maven { url = java.net.URI("https://maven.aliyun.com/repository/google") }
+        maven { url = java.net.URI("https://maven.aliyun.com/repository/public") }
         google()
         mavenCentral()
     }
@@ -15,8 +17,12 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
 subprojects {
-    project.evaluationDependsOn(":app")
+    afterEvaluate {
+        val android = project.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+        android?.buildToolsVersion("36.0.0")
+    }
 }
 
 tasks.register<Delete>("clean") {

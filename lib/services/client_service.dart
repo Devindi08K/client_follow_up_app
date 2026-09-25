@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client.dart';
+import 'plan_limits.dart';
+import 'purchase_service.dart';
 
 class ClientService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -39,6 +41,18 @@ class ClientService {
 
     if (user == null) {
       throw Exception('No authenticated user found.');
+    }
+
+    final isPro = await PurchaseService().isPro();
+    if (!isPro) {
+      final activeCount = await countClients();
+      if (activeCount >= PlanLimits.freeMaxActiveClients) {
+        throw FreeTierLimitException(
+          'Free plan is limited to ${PlanLimits.freeMaxActiveClients} active clients. '
+              'Archive an existing client or upgrade to Pro to add more.',
+          'clients',
+        );
+      }
     }
 
     final trimmedName = name.trim();

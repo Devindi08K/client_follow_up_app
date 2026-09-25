@@ -11,6 +11,8 @@ import '../requests/request_detail_screen.dart';
 import '../requests/request_list_screen.dart';
 import '../clients/client_list_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../services/notification_service.dart';
+import '../../services/connectivity_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -74,6 +76,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _loadBusinessProfile();
     _loadStats();
+    ConnectivityService.instance.onReconnected.listen((_) => _loadStats());
   }
 
   Future<void> _loadBusinessProfile() async {
@@ -164,6 +167,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
         _loadingStats = false;
       });
+      NotificationService.instance.scheduleDailySummary(
+        dueCount: followUps.length,
+        timeOfDay: '09:00',
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() {

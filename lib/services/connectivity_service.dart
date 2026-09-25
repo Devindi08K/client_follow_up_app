@@ -16,8 +16,11 @@ class ConnectivityService {
   static const _lookupHost = 'supabase.co';
 
   final _controller = StreamController<bool>.broadcast();
+  final _reconnectController = StreamController<void>.broadcast();
   Timer? _timer;
   bool _lastKnown = true;
+
+  Stream<void> get onReconnected => _reconnectController.stream;
 
   Stream<bool> get onStatusChanged => _controller.stream;
   bool get isOnlineLastKnown => _lastKnown;
@@ -30,8 +33,10 @@ class ConnectivityService {
   Future<void> _checkNow() async {
     final online = await _hasConnection();
     if (online != _lastKnown) {
+      final wasOffline = !_lastKnown;
       _lastKnown = online;
       _controller.add(online);
+      if (wasOffline && online) _reconnectController.add(null);
     }
   }
 
